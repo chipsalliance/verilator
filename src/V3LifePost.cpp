@@ -108,8 +108,8 @@ public:
         : mtaskp{mtaskp_}
         , sequence{sequence_} {}
     bool operator<(const LifeLocation& b) const {
-        unsigned a_id = mtaskp ? mtaskp->id() : 0;
-        unsigned b_id = b.mtaskp ? b.mtaskp->id() : 0;
+        const unsigned a_id = mtaskp ? mtaskp->id() : 0;
+        const unsigned b_id = b.mtaskp ? b.mtaskp->id() : 0;
         if (a_id < b_id) return true;
         if (b_id < a_id) return false;
         return sequence < b.sequence;
@@ -271,7 +271,7 @@ private:
         squashAssignposts();
 
         // Replace any node4p varscopes with the new scope
-        LifePostElimVisitor visitor(nodep);
+        LifePostElimVisitor visitor{nodep};
     }
     virtual void visit(AstVarRef* nodep) override {
         // Consumption/generation of a variable,
@@ -348,6 +348,6 @@ public:
 void V3LifePost::lifepostAll(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
     // Mark redundant AssignPost
-    { LifePostDlyVisitor visitor(nodep); }  // Destruct before checking
+    { LifePostDlyVisitor visitor{nodep}; }  // Destruct before checking
     V3Global::dumpCheckGlobalTree("life_post", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }

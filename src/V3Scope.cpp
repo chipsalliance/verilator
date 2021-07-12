@@ -291,7 +291,7 @@ private:
     }
     virtual void visit(AstScopeName* nodep) override {
         // If there's a %m in the display text, we add a special node that will contain the name()
-        string prefix = string("__DOT__") + m_scopep->name();
+        const string prefix = string("__DOT__") + m_scopep->name();
         // TOP and above will be the user's name().
         // Note 'TOP.' is stripped by scopePrettyName
         // To keep correct visual order, must add before other Text's
@@ -402,8 +402,8 @@ public:
 void V3Scope::scopeAll(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
     {
-        ScopeVisitor visitor(nodep);
-        ScopeCleanupVisitor cleanVisitor(nodep);
+        ScopeVisitor visitor{nodep};
+        ScopeCleanupVisitor cleanVisitor{nodep};
     }  // Destruct before checking
     V3Global::dumpCheckGlobalTree("scope", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }

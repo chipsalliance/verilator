@@ -80,7 +80,7 @@ public:
 
         of.puts("\n### Object file lists...\n");
         for (int support = 0; support < 3; ++support) {
-            for (int slow = 0; slow < 2; ++slow) {
+            for (const bool& slow : {false, true}) {
                 if (support == 2) {
                     of.puts("# Global classes, need linked once per executable");
                 } else if (support) {
@@ -168,6 +168,8 @@ public:
         }
 
         of.puts("\n### Switches...\n");
+        of.puts("# C++ code coverage  0/1 (from --prof-c)\n");
+        of.puts(string("VM_PROFC = ") + ((v3Global.opt.profC()) ? "1" : "0") + "\n");
         of.puts("# SystemC output mode?  0/1 (from --sc)\n");
         of.puts(string("VM_SC = ") + ((v3Global.opt.systemC()) ? "1" : "0") + "\n");
         of.puts("# Legacy or SystemC output mode?  0/1 (from --sc)\n");
@@ -203,7 +205,7 @@ public:
         const V3StringSet& cppFiles = v3Global.opt.cppFiles();
         for (const auto& cppfile : cppFiles) {
             of.puts("\t" + V3Os::filenameNonExt(cppfile) + " \\\n");
-            string dir = V3Os::filenameDir(cppfile);
+            const string dir = V3Os::filenameDir(cppfile);
             dirs.insert(dir);
         }
         of.puts("\n");
@@ -228,7 +230,7 @@ public:
             of.puts("VPATH += $(VM_USER_DIR)\n");
             of.puts("\n");
             for (const string& cppfile : cppFiles) {
-                string basename = V3Os::filenameNonExt(cppfile);
+                const string basename = V3Os::filenameNonExt(cppfile);
                 // NOLINTNEXTLINE(performance-inefficient-string-concatenation)
                 of.puts(basename + ".o: " + cppfile + "\n");
                 of.puts("\t$(OBJCACHE) $(CXX) $(CXXFLAGS) $(CPPFLAGS) $(OPT_FAST) -c -o $@ $<\n");

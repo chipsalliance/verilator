@@ -61,14 +61,13 @@ public:
             m_chgFuncp
                 = new AstCFunc(m_scopetopp->fileline(), "_change_request_" + cvtToStr(++m_funcNum),
                                m_scopetopp, "QData");
-            m_chgFuncp->argTypes(EmitCBaseVisitor::symClassVar());
-            m_chgFuncp->symProlog(true);
+            m_chgFuncp->isStatic(false);
+            m_chgFuncp->isLoose(true);
             m_chgFuncp->declPrivate(true);
             m_scopetopp->addActivep(m_chgFuncp);
 
             // Add a top call to it
             AstCCall* callp = new AstCCall(m_scopetopp->fileline(), m_chgFuncp);
-            callp->argTypes("vlSymsp");
 
             if (!m_tlChgFuncp->stmtsp()) {
                 m_tlChgFuncp->addStmtsp(new AstCReturn(m_scopetopp->fileline(), callp));
@@ -130,7 +129,7 @@ private:
         AstAssign* initp = new AstAssign(m_vscp->fileline(), m_newLvEqnp->cloneTree(true),
                                          m_varEqnp->cloneTree(true));
         m_statep->m_chgFuncp->addFinalsp(initp);
-        EmitCBaseCounterVisitor visitor(initp);
+        EmitCBaseCounterVisitor visitor{initp};
         m_statep->m_numStmts += visitor.count();
     }
 
@@ -229,7 +228,7 @@ private:
 
     void genChangeDet(AstVarScope* vscp) {
         vscp->v3warn(IMPERFECTSCH, "Imperfect scheduling of variable: " << vscp->prettyNameQ());
-        ChangedInsertVisitor visitor(vscp, m_statep);
+        ChangedInsertVisitor visitor{vscp, m_statep};
     }
 
     // VISITORS
@@ -251,8 +250,8 @@ private:
         // Create a wrapper change detection function that calls each change detection function
         m_statep->m_tlChgFuncp
             = new AstCFunc(nodep->fileline(), "_change_request", scopep, "QData");
-        m_statep->m_tlChgFuncp->argTypes(EmitCBaseVisitor::symClassVar());
-        m_statep->m_tlChgFuncp->symProlog(true);
+        m_statep->m_tlChgFuncp->isStatic(false);
+        m_statep->m_tlChgFuncp->isLoose(true);
         m_statep->m_tlChgFuncp->declPrivate(true);
         m_statep->m_scopetopp->addActivep(m_statep->m_tlChgFuncp);
         // Each change detection function needs at least one AstChangeDet
@@ -289,7 +288,7 @@ void V3Changed::changedAll(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
     {
         ChangedState state;
-        ChangedVisitor visitor(nodep, &state);
+        ChangedVisitor visitor{nodep, &state};
     }  // Destruct before checking
     V3Global::dumpCheckGlobalTree("changed", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }

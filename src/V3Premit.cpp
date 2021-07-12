@@ -30,8 +30,12 @@
 #include "V3Global.h"
 #include "V3Premit.h"
 #include "V3Ast.h"
+#include "V3DupFinder.h"
+#include "V3Stats.h"
 
 #include <algorithm>
+
+constexpr int STATIC_CONST_MIN_WIDTH = 256;  // Minimum size to extract to static constant
 
 //######################################################################
 // Structure for global state
@@ -39,8 +43,8 @@
 class PremitAssignVisitor final : public AstNVisitor {
 private:
     // NODE STATE
-    //  AstVar::user4()         // bool; occurs on LHS of current assignment
-    AstUser4InUse m_inuser4;
+    //  AstVar::user3()         // bool; occurs on LHS of current assignment
+    AstUser3InUse m_inuser3;
 
     // STATE
     bool m_noopt = false;  // Disable optimization of variables in this block
@@ -50,7 +54,7 @@ private:
 
     // VISITORS
     virtual void visit(AstNodeAssign* nodep) override {
-        // AstNode::user4ClearTree();  // Implied by AstUser4InUse
+        // AstNode::user3ClearTree();  // Implied by AstUser3InUse
         // LHS first as fewer varrefs
         iterateAndNextNull(nodep->lhsp());
         // Now find vars marked as lhs
@@ -59,9 +63,9 @@ private:
     virtual void visit(AstVarRef* nodep) override {
         // it's LHS var is used so need a deep temporary
         if (nodep->access().isWriteOrRW()) {
-            nodep->varp()->user4(true);
+            nodep->varp()->user3(true);
         } else {
-            if (nodep->varp()->user4()) {
+            if (nodep->varp()->user3()) {
                 if (!m_noopt) UINFO(4, "Block has LHS+RHS var: " << nodep << endl);
                 m_noopt = true;
             }
@@ -99,6 +103,8 @@ private:
     AstWhile* m_inWhilep = nullptr;  // Inside while loop, special statement additions
     AstTraceInc* m_inTracep = nullptr;  // Inside while loop, special statement additions
     bool m_assignLhs = false;  // Inside assignment lhs, don't breakup extracts
+
+    VDouble0 m_extractedToConstPool;  // Statistic tracking
 
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
@@ -139,14 +145,6 @@ private:
         }
     }
 
-    AstVar* getBlockTemp(AstNode* nodep) {
-        string newvarname = (string("__Vtemp") + cvtToStr(m_modp->varNumGetInc()));
-        AstVar* varp
-            = new AstVar(nodep->fileline(), AstVarType::STMTTEMP, newvarname, nodep->dtypep());
-        m_cfuncp->addInitsp(varp);
-        return varp;
-    }
-
     void insertBeforeStmt(AstNode* newp) {
         // Insert newp before m_stmtp
         if (m_inWhilep) {
@@ -167,33 +165,48 @@ private:
     }
 
     void createDeepTemp(AstNode* nodep, bool noSubst) {
-        if (debug() > 8) nodep->dumpTree(cout, "deepin:");
+        if (nodep->user1SetOnce()) return;  // Only add another assignment for this node
 
-        AstNRelinker linker;
-        nodep->unlinkFrBack(&linker);
+        AstNRelinker relinker;
+        nodep->unlinkFrBack(&relinker);
 
-        AstVar* varp = getBlockTemp(nodep);
-        if (noSubst) varp->noSubst(true);  // Do not remove varrefs to this in V3Const
-        // Replace node tree with reference to var
-        AstVarRef* newp = new AstVarRef(nodep->fileline(), varp, VAccess::READ);
-        linker.relink(newp);
-        // Put assignment before the referencing statement
-        AstAssign* assp = new AstAssign(
-            nodep->fileline(), new AstVarRef(nodep->fileline(), varp, VAccess::WRITE), nodep);
-        insertBeforeStmt(assp);
-        if (debug() > 8) assp->dumpTree(cout, "deepou:");
-        nodep->user1(true);  // Don't add another assignment
+        FileLine* const fl = nodep->fileline();
+        AstVar* varp = nullptr;
+        AstConst* const constp = VN_CAST(nodep, Const);
+        const bool useConstPool = constp  // Is a constant
+                                  && (constp->width() >= STATIC_CONST_MIN_WIDTH)  // Large enough
+                                  && !constp->num().isFourState()  // Not four state
+                                  && !constp->num().isString();  // Not a string
+        if (useConstPool) {
+            // Extract into constant pool.
+            const bool merge = v3Global.opt.mergeConstPool();
+            varp = v3Global.rootp()->constPoolp()->findConst(constp, merge)->varp();
+            nodep->deleteTree();
+            ++m_extractedToConstPool;
+        } else {
+            // Keep as local temporary
+            const string name = string("__Vtemp") + cvtToStr(m_modp->varNumGetInc());
+            varp = new AstVar(fl, AstVarType::STMTTEMP, name, nodep->dtypep());
+            m_cfuncp->addInitsp(varp);
+            // Put assignment before the referencing statement
+            insertBeforeStmt(new AstAssign(fl, new AstVarRef(fl, varp, VAccess::WRITE), nodep));
+        }
+
+        // Do not remove VarRefs to this in V3Const
+        if (noSubst) varp->noSubst(true);
+
+        // Replace node with VarRef to new Var
+        relinker.relink(new AstVarRef(fl, varp, VAccess::READ));
     }
 
     // VISITORS
     virtual void visit(AstNodeModule* nodep) override {
         UINFO(4, " MOD   " << nodep << endl);
-        VL_RESTORER(m_modp);
-        {
-            m_modp = nodep;
-            m_cfuncp = nullptr;
-            iterateChildren(nodep);
-        }
+        UASSERT_OBJ(m_modp == nullptr, nodep, "Nested modules ?");
+        m_modp = nodep;
+        m_cfuncp = nullptr;
+        iterateChildren(nodep);
+        m_modp = nullptr;
     }
     virtual void visit(AstCFunc* nodep) override {
         VL_RESTORER(m_cfuncp);
@@ -222,8 +235,9 @@ private:
     virtual void visit(AstNodeAssign* nodep) override {
         startStatement(nodep);
         {
-            bool noopt = PremitAssignVisitor(nodep).noOpt();
+            const bool noopt = PremitAssignVisitor(nodep).noOpt();
             if (noopt && !nodep->user1()) {
+                nodep->user1(true);
                 // Need to do this even if not wide, as e.g. a select may be on a wide operator
                 UINFO(4, "Deep temp for LHS/RHS\n");
                 createDeepTemp(nodep->rhsp(), false);
@@ -399,7 +413,10 @@ private:
 public:
     // CONSTRUCTORS
     explicit PremitVisitor(AstNetlist* nodep) { iterate(nodep); }
-    virtual ~PremitVisitor() override = default;
+    virtual ~PremitVisitor() {
+        V3Stats::addStat("Optimizations, Prelim extracted value to ConstPool",
+                         m_extractedToConstPool);
+    }
 };
 
 //----------------------------------------------------------------------
@@ -410,6 +427,6 @@ public:
 
 void V3Premit::premitAll(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
-    { PremitVisitor visitor(nodep); }  // Destruct before checking
+    { PremitVisitor visitor{nodep}; }  // Destruct before checking
     V3Global::dumpCheckGlobalTree("premit", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }

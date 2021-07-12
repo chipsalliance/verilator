@@ -276,7 +276,7 @@ private:
         } else if (AstWordSel* wordp = VN_CAST(nodep->lhsp(), WordSel)) {
             if (AstVarRef* varrefp = VN_CAST(wordp->lhsp(), VarRef)) {
                 if (VN_IS(wordp->rhsp(), Const) && isSubstVar(varrefp->varp())) {
-                    int word = VN_CAST(wordp->rhsp(), Const)->toUInt();
+                    const int word = VN_CAST(wordp->rhsp(), Const)->toUInt();
                     SubstVarEntry* entryp = getEntryp(varrefp);
                     hit = true;
                     if (m_ops > SUBST_MAX_OPS_SUBST) {
@@ -309,12 +309,12 @@ private:
         if (varrefp && isSubstVar(varrefp->varp()) && varrefp->access().isReadOnly() && constp) {
             // Nicely formed lvalues handled in NodeAssign
             // Other lvalues handled as unknown mess in AstVarRef
-            int word = constp->toUInt();
+            const int word = constp->toUInt();
             UINFO(8, " USEword" << word << " " << varrefp << endl);
             SubstVarEntry* entryp = getEntryp(varrefp);
             if (AstNode* substp = entryp->substWord(nodep, word)) {
                 // Check that the RHS hasn't changed value since we recorded it.
-                SubstUseVisitor visitor(substp, entryp->getWordStep(word));
+                SubstUseVisitor visitor{substp, entryp->getWordStep(word)};
                 if (visitor.ok()) {
                     VL_DO_DANGLING(replaceSubstEtc(nodep, substp), nodep);
                 } else {
@@ -341,7 +341,7 @@ private:
                 entryp->assignComplex();
             } else if (AstNode* substp = entryp->substWhole(nodep)) {
                 // Check that the RHS hasn't changed value since we recorded it.
-                SubstUseVisitor visitor(substp, entryp->getWholeStep());
+                SubstUseVisitor visitor{substp, entryp->getWholeStep()};
                 if (visitor.ok()) {
                     UINFO(8, " USEwhole " << nodep << endl);
                     VL_DO_DANGLING(replaceSubstEtc(nodep, substp), nodep);
@@ -380,6 +380,6 @@ public:
 
 void V3Subst::substituteAll(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
-    { SubstVisitor visitor(nodep); }  // Destruct before checking
+    { SubstVisitor visitor{nodep}; }  // Destruct before checking
     V3Global::dumpCheckGlobalTree("subst", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }

@@ -151,7 +151,7 @@ private:
             *m_ofp << "  ";
         }
         *m_ofp << nodep->prettyTypeName() << "\n";
-        string lastPrefix = m_prefix;
+        const string lastPrefix = m_prefix;
         m_prefix = lastPrefix + "1:";
         iterateAndNextNull(nodep->op1p());
         m_prefix = lastPrefix + "2:";
@@ -337,7 +337,7 @@ private:
 
     int filelineWidth() {
         if (!m_filelineWidth) {
-            CdcWidthVisitor visitor(v3Global.rootp());
+            CdcWidthVisitor visitor{v3Global.rootp()};
             m_filelineWidth = visitor.maxWidth();
         }
         return m_filelineWidth;
@@ -449,7 +449,7 @@ private:
         if (!vertexp->asyncPath() && level != 0) return false;  // Not part of path
 
         // Other logic in the path
-        string cont = prefix + sep;
+        const string cont = prefix + sep;
         string nextsep = "   ";
         for (V3GraphEdge* edgep = vertexp->inBeginp(); edgep; edgep = edgep->inNextp()) {
             CdcEitherVertex* eFromVertexp = static_cast<CdcEitherVertex*>(edgep->fromp());
@@ -495,7 +495,7 @@ private:
         UINFO(3, __FUNCTION__ << ": " << endl);
 
         // Trace all sources and sinks
-        for (int traceDests = 0; traceDests < 2; ++traceDests) {
+        for (const bool& traceDests : {false, true}) {
             UINFO(9, " Trace Direction " << (traceDests ? "dst" : "src") << endl);
             m_graph.userClearVertices();  // user1: bool - was analyzed
             for (V3GraphVertex* itp = m_graph.verticesBeginp(); itp; itp = itp->verticesNextp()) {
@@ -506,8 +506,9 @@ private:
             }
         }
 
-        string filename = v3Global.opt.makeDir() + "/" + v3Global.opt.prefix() + "__cdc_edges.txt";
-        const std::unique_ptr<std::ofstream> ofp(V3File::new_ofstream(filename));
+        const string filename
+            = v3Global.opt.makeDir() + "/" + v3Global.opt.prefix() + "__cdc_edges.txt";
+        const std::unique_ptr<std::ofstream> ofp{V3File::new_ofstream(filename)};
         if (ofp->fail()) v3fatal("Can't write " << filename);
         *ofp << "Edge Report for " << v3Global.opt.prefix() << '\n';
 
@@ -523,7 +524,7 @@ private:
                     os.setf(std::ios::left);
                     // Module name - doesn't work due to flattening having lost the original
                     // so we assume the modulename matches the filebasename
-                    string fname = vvertexp->varScp()->fileline()->filebasename() + ":";
+                    const string fname = vvertexp->varScp()->fileline()->filebasename() + ":";
                     os << "  " << std::setw(20) << fname;
                     os << "  " << std::setw(8) << what;
                     os << "  " << std::setw(40) << vvertexp->varScp()->prettyName();
@@ -727,7 +728,7 @@ public:
     // CONSTRUCTORS
     explicit CdcVisitor(AstNode* nodep) {
         // Make report of all signal names and what clock edges they have
-        string filename = v3Global.opt.makeDir() + "/" + v3Global.opt.prefix() + "__cdc.txt";
+        const string filename = v3Global.opt.makeDir() + "/" + v3Global.opt.prefix() + "__cdc.txt";
         m_ofp = V3File::new_ofstream(filename);
         if (m_ofp->fail()) v3fatal("Can't write " << filename);
         m_ofFilename = filename;
@@ -757,5 +758,5 @@ public:
 
 void V3Cdc::cdcAll(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
-    CdcVisitor visitor(nodep);
+    CdcVisitor visitor{nodep};
 }

@@ -108,6 +108,7 @@ private:
         // Like newFireAssert() but omits the asserts-on check
         AstDisplay* dispp = new AstDisplay(nodep->fileline(), AstDisplayType::DT_ERROR, message,
                                            nullptr, nullptr);
+        dispp->fmtp()->timeunit(m_modp->timeunit());
         AstNode* bodysp = dispp;
         replaceDisplay(dispp, "%%Error");  // Convert to standard DISPLAY format
         bodysp->addNext(new AstStop(nodep->fileline(), true));
@@ -162,7 +163,7 @@ private:
             } else {
                 ++m_statAsNotImm;
             }
-            bool force = VN_IS(nodep, AssertIntrinsic);
+            const bool force = VN_IS(nodep, AssertIntrinsic);
             if (passsp) passsp = newIfAssertOn(passsp, force);
             if (failsp) failsp = newIfAssertOn(failsp, force);
             if (!failsp) failsp = newFireAssertUnchecked(nodep, "'assert' failed.");
@@ -230,7 +231,7 @@ private:
             } while (ifp);
 
             AstNode* newifp = nodep->cloneTree(false);
-            bool allow_none = nodep->unique0Pragma();
+            const bool allow_none = nodep->unique0Pragma();
 
             // Empty case means no property
             if (!propp) propp = new AstConst(nodep->fileline(), AstConst::BitFalse());
@@ -304,7 +305,7 @@ private:
                     // Empty case means no property
                     if (!propp) propp = new AstConst(nodep->fileline(), AstConst::BitFalse());
 
-                    bool allow_none = has_default || nodep->unique0Pragma();
+                    const bool allow_none = has_default || nodep->unique0Pragma();
                     AstNode* ohot
                         = (allow_none
                                ? static_cast<AstNode*>(new AstOneHot0(nodep->fileline(), propp))
@@ -473,6 +474,6 @@ public:
 
 void V3Assert::assertAll(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
-    { AssertVisitor visitor(nodep); }  // Destruct before checking
+    { AssertVisitor visitor{nodep}; }  // Destruct before checking
     V3Global::dumpCheckGlobalTree("assert", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }

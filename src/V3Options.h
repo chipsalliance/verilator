@@ -242,10 +242,10 @@ private:
     bool m_hierarchical = false;    // main switch: --hierarchical
     bool m_hierChild = false;       // main switch: --hierarchical-child
     bool m_ignc = false;            // main switch: --ignc
-    bool m_inhibitSim = false;      // main switch: --inhibit-sim
     bool m_lintOnly = false;        // main switch: --lint-only
     bool m_gmake = false;           // main switch: --make gmake
     bool m_main = false;            // main swithc: --main
+    bool m_mergeConstPool = true;   // main switch: --merge-const-pool
     bool m_orderClockDly = true;    // main switch: --order-clock-delay
     bool m_outFormatOk = false;     // main switch: --cc, --sc or --sp was specified
     bool m_pedantic = false;        // main switch: --Wpedantic
@@ -253,13 +253,13 @@ private:
     bool m_pinsScBigUint = false;   // main switch: --pins-sc-biguint
     bool m_pinsUint8 = false;       // main switch: --pins-uint8
     bool m_ppComments = false;      // main switch: --pp-comments
+    bool m_profC = false;           // main switch: --prof-c
     bool m_profCFuncs = false;      // main switch: --prof-cfuncs
     bool m_profThreads = false;     // main switch: --prof-threads
     bool m_protectIds = false;      // main switch: --protect-ids
     bool m_public = false;          // main switch: --public
     bool m_publicFlatRW = false;    // main switch: --public-flat-rw
     bool m_quietExit = false;       // main switch: --quiet-exit
-    bool m_relativeCFuncs = true;   // main switch: --relative-cfuncs
     bool m_relativeIncludes = false; // main switch: --relative-includes
     bool m_reportUnoptflat = false; // main switch: --report-unoptflat
     bool m_savable = false;         // main switch: --savable
@@ -285,6 +285,7 @@ private:
     int         m_convergeLimit = 100;  // main switch: --converge-limit
     int         m_coverageMaxWidth = 256; // main switch: --coverage-max-width
     int         m_dumpTree = 0;     // main switch: --dump-tree
+    int         m_expandLimit = 64;  // main switch: --expand-limit
     int         m_gateStmts = 100;    // main switch: --gate-stmts
     int         m_ifDepth = 0;      // main switch: --if-depth
     int         m_inlineMult = 2000;   // main switch: --inline-mult
@@ -295,6 +296,7 @@ private:
     int         m_outputSplitCFuncs = -1;  // main switch: --output-split-cfuncs
     int         m_outputSplitCTrace = -1;  // main switch: --output-split-ctrace
     int         m_pinsBv = 65;       // main switch: --pins-bv
+    int         m_reloopLimit = 40; // main switch: --reloop-limit
     VOptionBool m_skipIdentical;  // main switch: --skip-identical
     int         m_threads = 0;      // main switch: --threads (0 == --no-threads)
     int         m_threadsMaxMTasks = 0;  // main switch: --threads-max-mtasks
@@ -359,6 +361,8 @@ private:
     bool        m_oTable;       // main switch: -Oa: lookup table creation
     // clang-format on
 
+    bool m_available = false;  // Set to true at the end of option parsing
+
 private:
     // METHODS
     void addArg(const string& arg);
@@ -374,7 +378,6 @@ private:
     void coverage(bool flag) { m_coverageLine = m_coverageToggle = m_coverageUser = flag; }
     static bool suffixed(const string& sw, const char* arg);
     static string parseFileArg(const string& optdir, const string& relfilename);
-    bool parseLangExt(const char* swp, const char* langswp, const V3LangCode& lc);
     string filePathCheckOneDir(const string& modname, const string& dirname);
     static int stripOptionsForChildRun(const string& opt, bool forTop);
 
@@ -401,6 +404,7 @@ public:
     void addVFile(const string& filename);
     void addForceInc(const string& filename);
     void notify();
+    bool available() const { return m_available; }
 
     // ACCESSORS (options)
     bool preprocOnly() const { return m_preprocOnly; }
@@ -452,6 +456,7 @@ public:
     bool traceStructs() const { return m_traceStructs; }
     bool traceUnderscore() const { return m_traceUnderscore; }
     bool main() const { return m_main; }
+    bool mergeConstPool() const { return m_mergeConstPool; }
     bool orderClockDly() const { return m_orderClockDly; }
     bool outFormatOk() const { return m_outFormatOk; }
     bool keepTempFiles() const { return (V3Error::debugDefault() != 0); }
@@ -460,6 +465,7 @@ public:
     bool pinsScBigUint() const { return m_pinsScBigUint; }
     bool pinsUint8() const { return m_pinsUint8; }
     bool ppComments() const { return m_ppComments; }
+    bool profC() const { return m_profC; }
     bool profCFuncs() const { return m_profCFuncs; }
     bool profThreads() const { return m_profThreads; }
     bool protectIds() const { return m_protectIds; }
@@ -467,9 +473,7 @@ public:
     bool publicFlatRW() const { return m_publicFlatRW; }
     bool lintOnly() const { return m_lintOnly; }
     bool ignc() const { return m_ignc; }
-    bool inhibitSim() const { return m_inhibitSim; }
     bool quietExit() const { return m_quietExit; }
-    bool relativeCFuncs() const { return m_relativeCFuncs; }
     bool reportUnoptflat() const { return m_reportUnoptflat; }
     bool verilate() const { return m_verilate; }
     bool vpi() const { return m_vpi; }
@@ -481,6 +485,7 @@ public:
     int coverageMaxWidth() const { return m_coverageMaxWidth; }
     int dumpTree() const { return m_dumpTree; }
     bool dumpTreeAddrids() const { return m_dumpTreeAddrids; }
+    int expandLimit() const { return m_expandLimit; }
     int gateStmts() const { return m_gateStmts; }
     int ifDepth() const { return m_ifDepth; }
     int inlineMult() const { return m_inlineMult; }
@@ -491,6 +496,7 @@ public:
     int outputSplitCFuncs() const { return m_outputSplitCFuncs; }
     int outputSplitCTrace() const { return m_outputSplitCTrace; }
     int pinsBv() const { return m_pinsBv; }
+    int reloopLimit() const { return m_reloopLimit; }
     VOptionBool skipIdentical() const { return m_skipIdentical; }
     int threads() const { return m_threads; }
     int threadsMaxMTasks() const { return m_threadsMaxMTasks; }

@@ -52,17 +52,17 @@ private:
         UINFO(6, "  Deep  " << nodep << endl);
         // if (debug() >= 9) nodep->dumpTree(cout, "deep:");
 
-        string newvarname = (string("__Vdeeptemp") + cvtToStr(m_modp->varNumGetInc()));
-        AstVar* varp
-            = new AstVar(nodep->fileline(), AstVarType::STMTTEMP, newvarname, nodep->dtypep());
+        const string newvarname = (string("__Vdeeptemp") + cvtToStr(m_modp->varNumGetInc()));
+        AstVar* const varp
+            = new AstVar{nodep->fileline(), AstVarType::STMTTEMP, newvarname, nodep->dtypep()};
         UASSERT_OBJ(m_cfuncp, nodep, "Deep expression not under a function");
         m_cfuncp->addInitsp(varp);
         // Replace node tree with reference to var
-        AstVarRef* newp = new AstVarRef(nodep->fileline(), varp, VAccess::READ);
+        AstVarRef* const newp = new AstVarRef{nodep->fileline(), varp, VAccess::READ};
         nodep->replaceWith(newp);
         // Put assignment before the referencing statement
-        AstAssign* assp = new AstAssign(
-            nodep->fileline(), new AstVarRef(nodep->fileline(), varp, VAccess::WRITE), nodep);
+        AstAssign* const assp = new AstAssign{
+            nodep->fileline(), new AstVarRef{nodep->fileline(), varp, VAccess::WRITE}, nodep};
         AstNRelinker linker2;
         m_stmtp->unlinkFrBack(&linker2);
         assp->addNext(m_stmtp);
@@ -128,7 +128,7 @@ private:
     // (Here instead of new visitor after V3Descope just to avoid another visitor)
     void needNonStaticFunc(AstNode* nodep) {
         UASSERT_OBJ(m_cfuncp, nodep, "Non-static accessor not under a function");
-        if (m_cfuncp->isStatic().trueUnknown()) {
+        if (m_cfuncp->isStatic()) {
             UINFO(5, "Mark non-public due to " << nodep << endl);
             m_cfuncp->isStatic(false);
         }
@@ -158,6 +158,6 @@ public:
 
 void V3Depth::depthAll(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
-    { DepthVisitor visitor(nodep); }  // Destruct before checking
+    { DepthVisitor visitor{nodep}; }  // Destruct before checking
     V3Global::dumpCheckGlobalTree("depth", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
 }

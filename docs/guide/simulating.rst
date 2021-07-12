@@ -272,8 +272,6 @@ profiled C++ code functions.
 To use profiling:
 
 #. Use Verilator's :vlopt:`--prof-cfuncs`.
-#. Use Verilator's :vlopt:`-CFLAGS "-g -pg" <-CFLAGS>` to pass the
-   profiling flags through to GCC/Clang.
 #. Build and run the simulation model.
 #. The model will create gmon.out.
 #. Run :command:`gprof` to see where in the C++ code the time is spent.
@@ -315,6 +313,35 @@ statistics.
    The thread_mtask section shows which macro-task is running on a given thread.
 
 For more information see :command:`verilator_gantt`.
+
+.. _Profiling ccache efficiency:
+
+Profiling ccache efficiency
+===========================
+
+The Verilator generated Makefile provides support for basic profiling of
+ccache behavior during the build. This can be used to track down files that
+might be unnecessarily rebuilt, though as of today even small code changes
+will usually require rebuilding a large number of files. Improving ccache
+efficiency during the edit/compile/test loop is an active area of
+development.
+
+To get a basic report of how well ccache is doing, add the `ccache-report`
+target when invoking the generated Makefile:
+
+.. code-block:: bash
+
+     make -C obj_dir -f Vout.mk Vout ccache-report
+
+This will print a report based on all executions of ccache during this
+invocation of Make. The report is also written to a file, in this example
+`obj_dir/Vout__cache_report.txt`.
+
+To use the `ccache-report` target, at least one other explicit build target
+must be specified, and OBJCACHE must be set to 'ccache'.
+
+This feature is currently experimental and might change in subsequent
+releases.
 
 .. _Save/Restore:
 

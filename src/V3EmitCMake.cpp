@@ -64,7 +64,7 @@ class CMakeEmitter final {
 
     static void cmake_set(std::ofstream& of, const string& name, const string& value,
                           const string& cache_type = "", const string& docstring = "") {
-        string raw_value = "\"" + value + "\"";
+        const string raw_value = "\"" + value + "\"";
         cmake_set_raw(of, name, raw_value, cache_type, docstring);
     }
 
@@ -78,9 +78,9 @@ class CMakeEmitter final {
     }
 
     static void emitOverallCMake() {
-        const std::unique_ptr<std::ofstream> of(
-            V3File::new_ofstream(v3Global.opt.makeDir() + "/" + v3Global.opt.prefix() + ".cmake"));
-        string name = v3Global.opt.prefix();
+        const std::unique_ptr<std::ofstream> of{
+            V3File::new_ofstream(v3Global.opt.makeDir() + "/" + v3Global.opt.prefix() + ".cmake")};
+        const string name = v3Global.opt.prefix();
 
         *of << "# Verilated -*- CMake -*-\n";
         *of << "# DESCR"
@@ -113,6 +113,10 @@ class CMakeEmitter final {
         cmake_set_raw(*of, name + "_COVERAGE", v3Global.opt.coverage() ? "1" : "0");
         *of << "# Threaded output mode?  0/1/N threads (from --threads)\n";
         cmake_set_raw(*of, name + "_THREADS", cvtToStr(v3Global.opt.threads()));
+        *of << "# Threaded tracing output mode?  0/1/N threads (from --trace-threads)\n";
+        cmake_set_raw(*of, name + "_TRACE_THREADS", cvtToStr(v3Global.opt.traceThreads()));
+        *of << "# Struct output mode?  0/1 (from --trace-structs)\n";
+        cmake_set_raw(*of, name + "_TRACE_STRUCTS", cvtToStr(v3Global.opt.traceStructs()));
         *of << "# VCD Tracing output mode?  0/1 (from --trace)\n";
         cmake_set_raw(*of, name + "_TRACE_VCD",
                       (v3Global.opt.trace() && (v3Global.opt.traceFormat() == TraceFormat::VCD))
@@ -167,11 +171,6 @@ class CMakeEmitter final {
             global.emplace_back("${VERILATOR_ROOT}/include/" + v3Global.opt.traceSourceBase()
                                 + "_c.cpp");
             if (v3Global.opt.systemC()) {
-                if (v3Global.opt.traceFormat() != TraceFormat::VCD) {
-                    v3warn(E_UNSUPPORTED,
-                           "Unsupported: This trace format is not supported in SystemC, "
-                           "use VCD format.");
-                }
                 global.emplace_back("${VERILATOR_ROOT}/include/" + v3Global.opt.traceSourceLang()
                                     + ".cpp");
             }

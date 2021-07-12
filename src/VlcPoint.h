@@ -61,7 +61,7 @@ public:
     // METHODS
     string keyExtract(const char* shortKey) const {
         // Hot function
-        size_t shortLen = std::strlen(shortKey);
+        const size_t shortLen = std::strlen(shortKey);
         const string namestr = name();
         for (const char* cp = namestr.c_str(); *cp; ++cp) {
             if (*cp == '\001') {
@@ -127,7 +127,7 @@ public:
             m_points[pointnum].countInc(count);
         } else {
             pointnum = m_numPoints++;
-            VlcPoint point(name, pointnum);
+            VlcPoint point{name, pointnum};
             point.countInc(count);
             m_points.push_back(point);
             m_nameMap.emplace(point.name(), point.pointNum());

@@ -176,7 +176,7 @@ private:
     void prepost_stmt_visit(AstNodeTriop* nodep) {
         iterateChildren(nodep);
 
-        AstNodeVarRef* varrefp;
+        AstNodeVarRef* varrefp = nullptr;
         if (m_unsupportedHere || !(varrefp = VN_CAST(nodep->rhsp(), VarRef))) {
             nodep->v3warn(E_UNSUPPORTED, "Unsupported: Incrementation in this context.");
             return;
@@ -189,7 +189,7 @@ private:
 
         // Prepare a temporary variable
         FileLine* fl = backp->fileline();
-        string name = string("__Vincrement") + cvtToStr(++m_modIncrementsNum);
+        const string name = string("__Vincrement") + cvtToStr(++m_modIncrementsNum);
         AstVar* varp = new AstVar(fl, AstVarType::BLOCKTEMP, name, VFlagChildDType(),
                                   varrefp->varp()->subDTypep()->cloneTree(true));
 
@@ -246,6 +246,6 @@ public:
 
 void V3LinkInc::linkIncrements(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
-    { LinkIncVisitor bvisitor(nodep); }  // Destruct before checking
+    { LinkIncVisitor bvisitor{nodep}; }  // Destruct before checking
     V3Global::dumpCheckGlobalTree("linkInc", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }

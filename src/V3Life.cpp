@@ -387,7 +387,7 @@ private:
         // Just don't optimize blocks with labels; they're rare - so far.
         LifeBlock* prevLifep = m_lifep;
         LifeBlock* bodyLifep = new LifeBlock(prevLifep, m_statep);
-        bool prev_noopt = m_noopt;
+        const bool prev_noopt = m_noopt;
         {
             m_lifep = bodyLifep;
             m_noopt = true;
@@ -414,7 +414,7 @@ private:
         // UINFO(4, "  CFUNC " << nodep << endl);
         if (!m_tracingCall && !nodep->entryPoint()) return;
         m_tracingCall = false;
-        if (nodep->dpiImport() && !nodep->pure()) {
+        if (nodep->dpiImportPrototype() && !nodep->pure()) {
             m_sideEffect = true;  // If appears on assign RHS, don't ever delete the assignment
         }
         iterateChildren(nodep);
@@ -461,12 +461,12 @@ private:
     virtual void visit(AstCFunc* nodep) override {
         if (nodep->entryPoint()) {
             // Usage model 1: Simulate all C code, doing lifetime analysis
-            LifeVisitor visitor(nodep, m_statep);
+            LifeVisitor visitor{nodep, m_statep};
         }
     }
     virtual void visit(AstNodeProcedure* nodep) override {
         // Usage model 2: Cleanup basic blocks
-        LifeVisitor visitor(nodep, m_statep);
+        LifeVisitor visitor{nodep, m_statep};
     }
     virtual void visit(AstVar*) override {}  // Accelerate
     virtual void visit(AstNodeStmt*) override {}  // Accelerate
@@ -489,7 +489,7 @@ void V3Life::lifeAll(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
     {
         LifeState state;
-        LifeTopVisitor visitor(nodep, &state);
+        LifeTopVisitor visitor{nodep, &state};
     }  // Destruct before checking
     V3Global::dumpCheckGlobalTree("life", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }

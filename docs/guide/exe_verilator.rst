@@ -403,6 +403,12 @@ Summary:
    files on the command line that implement the main loop for your
    simulation.
 
+.. option:: --expand-limit <value>
+
+   Rarely needed.  Fine-tune optimizations to set the maximum size of an
+   expression in 32-bit words to expand into separate word-based
+   statements.
+
 .. option:: -F <file>
 
    Read the specified file, and act as if all text inside it was specified
@@ -418,8 +424,11 @@ Summary:
    fairly standard across Verilog tools.
 
    The file may contain :code:`//` comments which are ignored to the end of
-   the line.  Any :code:`$VAR`, :code:`$(VAR)`, or :code:`${VAR}` will be
-   replaced with the specified environment variable.
+   the line.  It may also contain :code:`/* .. */` comments which are
+   ignored, be cautious that wildcards are not handled in -f files, and
+   that :code:`directory/*` is the beginning of a comment, not a wildcard.
+   Any :code:`$VAR`, :code:`$(VAR)`, or :code:`${VAR}` will be replaced
+   with the specified environment variable.
 
 .. option:: -FI <file>
 
@@ -517,14 +526,6 @@ Summary:
 .. option:: +incdir+<dir>
 
    See :vlopt:`-y`.
-
-.. option:: --inhibit-sim
-
-   Rarely needed and deprecated.  Create a :code:`inhibitSim(bool)`
-   function to enable and disable evaluation.  This allows an upper level
-   testbench to disable modules that are not important in a given
-   simulation, without needing to recompile or change the SystemC modules
-   instantiated.
 
 .. option:: --inline-mult <value>
 
@@ -624,6 +625,13 @@ Summary:
    The directory is created if it does not exist and the parent directories
    exist; otherwise manually create the Mdir before calling Verilator.
 
+.. option:: --no-merge-const-pool
+
+   Rarely needed.  In order to minimize cache footprint, values of different
+   data type, that are yet emitted identically in C++ are merged in the
+   constant pool.  This option disables this and causes every constant pool
+   entry with a distinct data type to be emitted separately.
+
 .. option:: --mod-prefix <topname>
 
    Specifies the name to prepend to all lower level classes.  Defaults to
@@ -644,10 +652,6 @@ Summary:
 .. option:: --no-pins64
 
    Backward compatible alias for :vlopt:`--pins-bv 33 <--pins-bv>`.
-
-.. option:: --no-relative-cfuncs
-
-   Deprecated.
 
 .. option:: --no-skip-identical =item --skip-identical
 
@@ -799,6 +803,13 @@ Summary:
    prepended to the name of the :vlopt:`--top` option, or V prepended to
    the first Verilog filename passed on the command line.
 
+.. option:: --prof-c
+
+   When compiling the C++ code, enable the compiler's profiling flag
+   (e.g. :code:`g++ -pg`). See :ref:`Profiling`.
+
+   Using :vlopt:`--prof-cfuncs` also enables :vlopt:`prof-c`.
+
 .. option:: --prof-cfuncs
 
    Modify the created C++ functions to support profiling.  The functions
@@ -808,6 +819,8 @@ Summary:
    with the basename of the Verilog module and line number the statement
    came from.  This allows gprof or oprofile reports to be correlated with
    the original Verilog source statements. See :ref:`Profiling`.
+
+   Using :vlopt:`--prof-cfuncs` also enables :vlopt:`prof-c`.
 
 .. option:: --prof-threads
 
@@ -914,6 +927,15 @@ Summary:
    When a file references an include file, resolve the filename relative to
    the path of the referencing file, instead of relative to the current
    directory.
+
+.. option:: --reloop-limit
+
+   Rarely needed. Verilator attempts to turn some common sequences of
+   statements into loops in the output. This argument specifies the minimum
+   number of iterations the resulting loop needs to have in order to perform
+   this transformation. Default limit is 40. A smaller number may slightly
+   improve C++ compilation time on designs where these sequences are common,
+   however effect on model performance requires benchmarking.
 
 .. option:: --report-unoptflat
 

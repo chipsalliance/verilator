@@ -96,6 +96,7 @@
 #include "V3Undriven.h"
 #include "V3Unknown.h"
 #include "V3Unroll.h"
+#include "V3VariableOrder.h"
 #include "V3Waiver.h"
 #include "V3Width.h"
 
@@ -403,9 +404,6 @@ static void process() {
         if (v3Global.opt.trace()) V3Trace::traceAll(v3Global.rootp());
 
         if (v3Global.opt.stats()) V3Stats::statsStageAll(v3Global.rootp(), "Scoped");
-
-        // Remove scopes; make varrefs/funccalls relative to current module
-        V3Descope::descopeAll(v3Global.rootp());
     }
 
     //--MODULE OPTIMIZATIONS--------------
@@ -416,8 +414,14 @@ static void process() {
             V3DepthBlock::depthBlockAll(v3Global.rootp());
         }
 
-        // Move BLOCKTEMPS from class to local variables
+        // Up until this point, all references must be scoped
+        v3Global.assertScoped(false);
+
+        // Move variables from modules to function local variables where possible
         if (v3Global.opt.oLocalize()) V3Localize::localizeAll(v3Global.rootp());
+
+        // Remove remaining scopes; make varrefs/funccalls relative to current module
+        V3Descope::descopeAll(v3Global.rootp());
 
         // Icache packing; combine common code in each module's functions into subroutines
         if (v3Global.opt.oCombine()) V3Combine::combineAll(v3Global.rootp());
@@ -439,7 +443,7 @@ static void process() {
         // Make all math operations either 8, 16, 32 or 64 bits
         V3Clean::cleanAll(v3Global.rootp());
 
-        // Move wide constants to BLOCK temps.
+        // Move wide constants to BLOCK temps / ConstPool.
         V3Premit::premitAll(v3Global.rootp());
     }
 
@@ -490,25 +494,30 @@ static void process() {
         V3CCtors::cctorsAll();
     }
 
-    // Output the text
-    if (!v3Global.opt.lintOnly() && !v3Global.opt.xmlOnly() && !v3Global.opt.dpiHdrOnly()) {
-        // Create AstCUse to determine what class forward declarations/#includes needed in C
-        // Must be before V3EmitC
-        V3CUse::cUseAll();
-
-        // emitcInlines is first, as it may set needHInlines which other emitters read
-        V3EmitC::emitcInlines();
-        V3EmitC::emitcSyms();
-        V3EmitC::emitcTrace();
-    } else if (v3Global.opt.dpiHdrOnly()) {
-        V3EmitC::emitcSyms(true);
-    }
     if (!v3Global.opt.xmlOnly() && v3Global.opt.mtasks()) {
         // Finalize our MTask cost estimates and pack the mtasks into
         // threads. Must happen pre-EmitC which relies on the packing
         // order. Must happen post-V3LifePost which changes the relative
         // costs of mtasks.
         V3Partition::finalize();
+    }
+
+    // Output the text
+    if (!v3Global.opt.lintOnly() && !v3Global.opt.xmlOnly() && !v3Global.opt.dpiHdrOnly()) {
+        // Create AstCUse to determine what class forward declarations/#includes needed in C
+        // Must be before V3EmitC
+        V3CUse::cUseAll();
+
+        // Order variables
+        V3VariableOrder::orderAll();
+
+        // emitcInlines is first, as it may set needHInlines which other emitters read
+        V3EmitC::emitcInlines();
+        V3EmitC::emitcSyms();
+        V3EmitC::emitcConstPool();
+        V3EmitC::emitcModel();
+    } else if (v3Global.opt.dpiHdrOnly()) {
+        V3EmitC::emitcSyms(true);
     }
     if (!v3Global.opt.xmlOnly()
         && !v3Global.opt.dpiHdrOnly()) {  // Unfortunately we have some lint checks in emitc.
@@ -699,7 +708,7 @@ int main(int argc, char** argv, char** env) {
 
     // Command option parsing
     v3Global.opt.bin(argv[0]);
-    string argString = V3Options::argString(argc - 1, argv + 1);
+    const string argString = V3Options::argString(argc - 1, argv + 1);
     v3Global.opt.parseOpts(new FileLine(FileLine::commandLineFilename()), argc - 1, argv + 1);
 
     // Validate settings (aka Boost.Program_options)

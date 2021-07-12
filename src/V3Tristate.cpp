@@ -92,12 +92,18 @@ public:
     AstNode* nodep() const { return m_nodep; }
     AstVar* varp() const { return VN_CAST(nodep(), Var); }
     virtual string name() const override {
-        return ((isTristate() ? "tri\\n" : feedsTri() ? "feed\\n" : "-\\n")
+        return ((isTristate() ? "tri\\n"
+                 : feedsTri() ? "feed\\n"
+                              : "-\\n")
                 + (nodep()->prettyTypeName() + " " + cvtToHex(nodep())));
     }
     virtual string dotColor() const override {
-        return (varp() ? (isTristate() ? "darkblue" : feedsTri() ? "blue" : "lightblue")
-                       : (isTristate() ? "darkgreen" : feedsTri() ? "green" : "lightgreen"));
+        return (varp() ? (isTristate() ? "darkblue"
+                          : feedsTri() ? "blue"
+                                       : "lightblue")
+                       : (isTristate() ? "darkgreen"
+                          : feedsTri() ? "green"
+                                       : "lightgreen"));
     }
     virtual FileLine* fileline() const override { return nodep()->fileline(); }
     void isTristate(bool flag) { m_isTristate = flag; }
@@ -1132,13 +1138,13 @@ class TristateVisitor final : public TristateBaseVisitor {
             if (debug() >= 9) nodep->dumpTree(cout, "-pin-pre: ");
 
             // Empty/in-only; need Z to propagate
-            bool inDeclProcessing = (nodep->exprp()
-                                     && nodep->modVarp()->direction() == VDirection::INPUT
-                                     // Need to consider the original state
-                                     // instead of current state as we converted
-                                     // tristates to inputs, which do not want
-                                     // to have this.
-                                     && !nodep->modVarp()->declDirection().isWritable());
+            const bool inDeclProcessing = (nodep->exprp()
+                                           && nodep->modVarp()->direction() == VDirection::INPUT
+                                           // Need to consider the original state
+                                           // instead of current state as we converted
+                                           // tristates to inputs, which do not want
+                                           // to have this.
+                                           && !nodep->modVarp()->declDirection().isWritable());
             if (!nodep->exprp()) {  // No-connect; covert to empty connection
                 UINFO(5, "Unconnected pin terminate " << nodep << endl);
                 AstVar* ucVarp = getCreateUnconnVarp(nodep, nodep->modVarp()->dtypep());
@@ -1207,7 +1213,7 @@ class TristateVisitor final : public TristateBaseVisitor {
                     // simple, it will flip ArraySel's and such, but if the
                     // pin is an input the earlier reconnectSimple made it
                     // a VarRef without any ArraySel, etc
-                    TristatePinVisitor visitor(outexprp, m_tgraph, true);
+                    TristatePinVisitor visitor{outexprp, m_tgraph, true};
                 }
                 if (debug() >= 9) outpinp->dumpTree(cout, "-pin-opr: ");
                 outAssignp = V3Inst::pinReconnectSimple(outpinp, m_cellp,
@@ -1218,7 +1224,7 @@ class TristateVisitor final : public TristateBaseVisitor {
             }
 
             // Existing pin becomes an input, and we mark each resulting signal as tristate
-            TristatePinVisitor visitor(nodep->exprp(), m_tgraph, false);
+            TristatePinVisitor visitor{nodep->exprp(), m_tgraph, false};
             AstNode* inAssignp = V3Inst::pinReconnectSimple(
                 nodep, m_cellp, true);  // Note may change nodep->exprp()
             if (debug() >= 9) nodep->dumpTree(cout, "-pin-in:  ");
@@ -1418,6 +1424,6 @@ public:
 
 void V3Tristate::tristateAll(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
-    { TristateVisitor visitor(nodep); }  // Destruct before checking
+    { TristateVisitor visitor{nodep}; }  // Destruct before checking
     V3Global::dumpCheckGlobalTree("tristate", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }
