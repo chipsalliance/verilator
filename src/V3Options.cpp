@@ -67,6 +67,7 @@ public:
     using DirMap = std::map<const string, std::set<std::string>>;  // Directory listing
 
     // STATE
+    std::list<string> m_lineArgs;  // List of command line argument encountered
     std::list<string> m_allArgs;  // List of every argument encountered
     std::list<string> m_incDirUsers;  // Include directories (ordered)
     std::set<string> m_incDirUserSet;  // Include directories (for removing duplicates)
@@ -360,6 +361,9 @@ void V3Options::checkParameters() {
 
 void V3Options::addCppFile(const string& filename) { m_cppFiles.insert(filename); }
 void V3Options::addCFlags(const string& filename) { m_cFlags.push_back(filename); }
+void V3Options::addCompilerIncludes(const string& filename) {
+    m_compilerIncludes.insert(filename);
+}
 void V3Options::addLdLibs(const string& filename) { m_ldLibs.push_back(filename); }
 void V3Options::addMakeFlags(const string& filename) { m_makeFlags.push_back(filename); }
 void V3Options::addFuture(const string& flag) { m_futures.insert(flag); }
@@ -393,6 +397,8 @@ void V3Options::addVFile(const string& filename) {
 }
 void V3Options::addForceInc(const string& filename) { m_forceIncs.push_back(filename); }
 
+void V3Options::addLineArg(const string& arg) { m_impp->m_lineArgs.push_back(arg); }
+
 void V3Options::addArg(const string& arg) { m_impp->m_allArgs.push_back(arg); }
 
 string V3Options::allArgsString() const VL_MT_SAFE {
@@ -405,12 +411,12 @@ string V3Options::allArgsString() const VL_MT_SAFE {
 }
 
 // Delete some options for Verilation of the hierarchical blocks.
-string V3Options::allArgsStringForHierBlock(bool forTop) const {
+string V3Options::allArgsStringForHierBlock(bool forTop, bool forCMake) const {
     std::set<string> vFiles;
     for (const auto& vFile : m_vFiles) vFiles.insert(vFile);
     string out;
-    for (std::list<string>::const_iterator it = m_impp->m_allArgs.begin();
-         it != m_impp->m_allArgs.end(); ++it) {
+    for (std::list<string>::const_iterator it = m_impp->m_lineArgs.begin();
+         it != m_impp->m_lineArgs.end(); ++it) {
         int skip = 0;
         if (it->length() >= 2 && (*it)[0] == '-' && (*it)[1] == '-') {
             skip = 2;
@@ -426,7 +432,7 @@ string V3Options::allArgsStringForHierBlock(bool forTop) const {
                 continue;
             }
         } else {  // Not an option
-            if (vFiles.find(*it) != vFiles.end()  // Remove HDL
+            if ((forCMake && vFiles.find(*it) != vFiles.end())  // Remove HDL
                 || m_cppFiles.find(*it) != m_cppFiles.end()) {  // Remove C++
                 continue;
             }
@@ -1003,6 +1009,9 @@ string V3Options::argString(int argc, char** argv) {
 // V3 Options Parsing
 
 void V3Options::parseOpts(FileLine* fl, int argc, char** argv) VL_MT_DISABLED {
+    // Save command line options
+    for (int i = 0; i < argc; ++i) { addLineArg(argv[i]); }
+
     // Parse all options
     // Initial entry point from Verilator.cpp
     parseOptsList(fl, ".", argc, argv);
@@ -1180,6 +1189,7 @@ void V3Options::parseOptsList(FileLine* fl, const string& optdir, int argc,
                         << fl->warnMore() << "... Suggest 'clang', 'gcc', or 'msvc'");
         }
     });
+    DECL_OPTION("-compiler-include", CbVal, callStrSetter(&V3Options::addCompilerIncludes));
     DECL_OPTION("-coverage", CbOnOff, [this](bool flag) { coverage(flag); });
     DECL_OPTION("-converge-limit", Set, &m_convergeLimit);
     DECL_OPTION("-coverage-line", OnOff, &m_coverageLine);
@@ -1400,6 +1410,7 @@ void V3Options::parseOptsList(FileLine* fl, const string& optdir, int argc,
         m_pinsScUint = flag;
         if (!m_pinsScBigUint) m_pinsBv = 65;
     });
+    DECL_OPTION("-pins-sc-uint-bool", CbOnOff, [this](bool flag) { m_pinsScUintBool = flag; });
     DECL_OPTION("-pins-sc-biguint", CbOnOff, [this](bool flag) {
         m_pinsScBigUint = flag;
         m_pinsBv = 513;

@@ -213,8 +213,8 @@ public:
     bool isOutputter() override { return !isPure(); }
     AstCFunc* funcp() const { return m_funcp; }
     void funcp(AstCFunc* funcp) { m_funcp = funcp; }
-    void argTypes(const string& str) { m_argTypes = str; }
     string argTypes() const { return m_argTypes; }
+    void argTypes(const string& str) { m_argTypes = str; }
 
     string emitVerilog() final override { V3ERROR_NA_RETURN(""); }
     string emitC() final override { V3ERROR_NA_RETURN(""); }
@@ -1847,11 +1847,11 @@ public:
         return (name().find("%m") != string::npos || name().find("%M") != string::npos);
     }
     bool hidden() const { return m_hidden; }
-    void hasFormat(bool flag) { m_hasFormat = flag; }
     bool hasFormat() const { return m_hasFormat; }
+    void hasFormat(bool flag) { m_hasFormat = flag; }
     char missingArgChar() const { return m_missingArgChar; }
-    void timeunit(const VTimescale& flag) { m_timeunit = flag; }
     VTimescale timeunit() const { return m_timeunit; }
+    void timeunit(const VTimescale& flag) { m_timeunit = flag; }
 
     string emitVerilog() override { V3ERROR_NA_RETURN(""); }
     string emitC() override { V3ERROR_NA_RETURN(""); }
@@ -2173,8 +2173,8 @@ public:
     bool cleanOut() const override { return true; }
     int instrCount() const override { return widthInstrs(); }
     bool same(const AstNode* /*samep*/) const override { return true; }
-    void timeunit(const VTimescale& flag) { m_timeunit = flag; }
     VTimescale timeunit() const { return m_timeunit; }
+    void timeunit(const VTimescale& flag) { m_timeunit = flag; }
 };
 class AstUCFunc final : public AstNodeExpr {
     // User's $c function
@@ -2260,7 +2260,7 @@ class AstWith final : public AstNodeExpr {
     // @astgen op3 := exprp : List[AstNode]
 public:
     AstWith(FileLine* fl, AstLambdaArgRef* indexArgRefp, AstLambdaArgRef* valueArgRefp,
-            AstNodeExpr* exprp)
+            AstNode* exprp)
         : ASTGEN_SUPER_With(fl) {
         this->indexArgRefp(indexArgRefp);
         this->valueArgRefp(valueArgRefp);
@@ -2283,13 +2283,13 @@ class AstWithParse final : public AstNodeExpr {
     // Replaced with AstWith
     // Parents: expr|stmt
     // Children: funcref, expr
-    // @astgen op1 := funcrefp : AstNode
-    // @astgen op2 := exprp : Optional[AstNodeExpr]
+    // @astgen op1 := funcrefp : AstNodeExpr
+    // @astgen op2 := exprsp : List[AstNode]
 public:
-    AstWithParse(FileLine* fl, AstNode* funcrefp, AstNodeExpr* exprp)
+    AstWithParse(FileLine* fl, AstNodeExpr* funcrefp, AstNode* exprsp)
         : ASTGEN_SUPER_WithParse(fl) {
         this->funcrefp(funcrefp);
-        this->exprp(exprp);
+        this->addExprsp(exprsp);
     }
     ASTGEN_MEMBERS_AstWithParse;
     bool same(const AstNode* /*samep*/) const override { return true; }
@@ -4439,8 +4439,8 @@ public:
     bool same(const AstNode* /*samep*/) const override { return true; }
     void dump(std::ostream& str = std::cout) const override;
     void dumpJson(std::ostream& str = std::cout) const override;
-    void timeunit(const VTimescale& flag) { m_timeunit = flag; }
     VTimescale timeunit() const { return m_timeunit; }
+    void timeunit(const VTimescale& flag) { m_timeunit = flag; }
 };
 class AstTimeD final : public AstNodeTermop {
     VTimescale m_timeunit;  // Parent module time unit
@@ -4460,8 +4460,8 @@ public:
     bool same(const AstNode* /*samep*/) const override { return true; }
     void dump(std::ostream& str = std::cout) const override;
     void dumpJson(std::ostream& str = std::cout) const override;
-    void timeunit(const VTimescale& flag) { m_timeunit = flag; }
     VTimescale timeunit() const { return m_timeunit; }
+    void timeunit(const VTimescale& flag) { m_timeunit = flag; }
 };
 
 // === AstNodeTriop ===
@@ -5355,8 +5355,8 @@ public:
     bool sizeMattersLhs() const override { return false; }
     void dump(std::ostream& str = std::cout) const override;
     void dumpJson(std::ostream& str = std::cout) const override;
-    void timeunit(const VTimescale& flag) { m_timeunit = flag; }
     VTimescale timeunit() const { return m_timeunit; }
+    void timeunit(const VTimescale& flag) { m_timeunit = flag; }
 };
 class AstToLowerN final : public AstNodeUniop {
     // string.tolower()
@@ -5645,6 +5645,7 @@ public:
     inline AstVarXRef(FileLine* fl, AstVar* varp, const string& dotted, const VAccess& access);
     ASTGEN_MEMBERS_AstVarXRef;
     string name() const override VL_MT_STABLE { return m_name; }  // * = Var name
+    void name(const std::string& name) override { m_name = name; }  // * = Var name
     void dump(std::ostream& str) const override;
     void dumpJson(std::ostream& str) const override;
     string dotted() const { return m_dotted; }

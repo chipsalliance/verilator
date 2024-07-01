@@ -121,6 +121,7 @@ public:
         MULTITOP,       // Multiple top level modules
         NEWERSTD,       // Newer language standard required
         NOLATCH,        // No latch detected in always_latch block
+        NONSTD,         // Non-standard feature present in other sims
         NULLPORT,       // Null port detected in module definition
         PINCONNECTEMPTY,// Cell pin connected by name with empty reference
         PINMISSING,     // Cell pin not specified
@@ -204,7 +205,7 @@ public:
             "IMPERFECTSCH", "IMPLICIT", "IMPLICITSTATIC", "IMPORTSTAR", "IMPURE",
             "INCABSPATH", "INFINITELOOP", "INITIALDLY", "INSECURE",
             "LATCH", "LITENDIAN", "MINTYPMAXDLY", "MISINDENT", "MODDUP",
-            "MULTIDRIVEN", "MULTITOP", "NEWERSTD", "NOLATCH", "NULLPORT", "PINCONNECTEMPTY",
+            "MULTIDRIVEN", "MULTITOP", "NEWERSTD", "NOLATCH", "NONSTD", "NULLPORT", "PINCONNECTEMPTY",
             "PINMISSING", "PINNOCONNECT",  "PINNOTFOUND", "PKGNODECL", "PREPROCZERO", "PROCASSWIRE",
             "PROFOUTOFDATE", "PROTECTED", "RANDC", "REALCVT", "REDEFMACRO", "RISEFALLDLY",
             "SELRANGE", "SHORTREAL", "SIDEEFFECT", "SPLITVAR",
@@ -350,8 +351,8 @@ public:
     void execErrorExitCb() VL_REQUIRES(m_mutex) {
         if (m_errorExitCb) m_errorExitCb();
     }
-    void errorExitCb(ErrorExitCb cb) VL_REQUIRES(m_mutex) { m_errorExitCb = cb; }
     ErrorExitCb errorExitCb() VL_REQUIRES(m_mutex) { return m_errorExitCb; }
+    void errorExitCb(ErrorExitCb cb) VL_REQUIRES(m_mutex) { m_errorExitCb = cb; }
     bool isError(V3ErrorCode code, bool supp) VL_REQUIRES(m_mutex);
     void vlAbortOrExit() VL_REQUIRES(m_mutex);
     void errorContexted(bool flag) VL_REQUIRES(m_mutex) { m_errorContexted = flag; }
@@ -378,12 +379,12 @@ public:
         }
         m_pretendError[code] = flag;
     }
-    void debugDefault(int level) VL_MT_UNSAFE { m_debugDefault = level; }
     int debugDefault() VL_MT_SAFE { return m_debugDefault; }
-    void errorLimit(int level) VL_REQUIRES(m_mutex) { m_errorLimit = level; }
+    void debugDefault(int level) VL_MT_UNSAFE { m_debugDefault = level; }
     int errorLimit() VL_REQUIRES(m_mutex) { return m_errorLimit; }
-    void warnFatal(bool flag) VL_REQUIRES(m_mutex) { m_warnFatal = flag; }
+    void errorLimit(int level) VL_REQUIRES(m_mutex) { m_errorLimit = level; }
     bool warnFatal() VL_REQUIRES(m_mutex) { return m_warnFatal; }
+    void warnFatal(bool flag) VL_REQUIRES(m_mutex) { m_warnFatal = flag; }
     V3ErrorCode errorCode() VL_REQUIRES(m_mutex) { return m_errorCode; }
     bool errorContexted() VL_REQUIRES(m_mutex) { return m_errorContexted; }
     int warnCount() VL_REQUIRES(m_mutex) { return m_warnCount; }

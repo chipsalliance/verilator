@@ -581,8 +581,13 @@ class WidthVisitor final : public VNVisitor {
                                                  << vdtypep->prettyDTypeNameQ() << " data type");
             }
 
-            iterateCheckSizedSelf(nodep, "LHS", nodep->lhsp(), SELF, BOTH);
-            iterateCheckSizedSelf(nodep, "RHS", nodep->rhsp(), SELF, BOTH);
+            if (vdtypep && vdtypep->isString()) {
+                iterateCheckString(nodep, "LHS", nodep->lhsp(), BOTH);
+                iterateCheckString(nodep, "RHS", nodep->rhsp(), BOTH);
+            } else {
+                iterateCheckSizedSelf(nodep, "LHS", nodep->lhsp(), SELF, BOTH);
+                iterateCheckSizedSelf(nodep, "RHS", nodep->rhsp(), SELF, BOTH);
+            }
             nodep->dtypeSetLogicUnsized(nodep->lhsp()->width() + nodep->rhsp()->width(),
                                         nodep->lhsp()->widthMin() + nodep->rhsp()->widthMin(),
                                         VSigning::UNSIGNED);
@@ -773,7 +778,12 @@ class WidthVisitor final : public VNVisitor {
                 nodep->v3warn(E_UNSUPPORTED, "Unsupported: Replication to form "
                                                  << vdtypep->prettyDTypeNameQ() << " data type");
             }
-            iterateCheckSizedSelf(nodep, "LHS", nodep->srcp(), SELF, BOTH);
+            if (vdtypep && vdtypep->isString()) {
+                iterateCheckString(nodep, "LHS", nodep->srcp(), BOTH);
+            } else {
+                iterateCheckSizedSelf(nodep, "LHS", nodep->srcp(), SELF, BOTH);
+            }
+
             if ((vdtypep && vdtypep->isString()) || nodep->srcp()->isString()) {
                 AstNode* const newp
                     = new AstReplicateN{nodep->fileline(), nodep->srcp()->unlinkFrBack(),
@@ -880,7 +890,7 @@ class WidthVisitor final : public VNVisitor {
             const int width = nodep->elementsConst();
             if (width > (1 << 28)) {
                 nodep->v3error("Width of bit range is huge; vector of over 1 billion bits: 0x"
-                               << std::hex << width);
+                               << std::hex << width << std::dec);
             }
             // Note width() not set on range; use elementsConst()
             if (nodep->ascending() && !VN_IS(nodep->backp(), UnpackArrayDType)
@@ -993,6 +1003,12 @@ class WidthVisitor final : public VNVisitor {
                                                 << " outside " << frommsb << ":" << fromlsb);
                     UINFO(1, "    Related node: " << nodep << endl);
                 }
+                // Extend it.
+                const int extendTo = nodep->msbConst() + 1;
+                AstNodeDType* const subDTypep = nodep->findLogicDType(
+                    extendTo, extendTo, nodep->fromp()->dtypep()->numeric());
+                widthCheckSized(nodep, "errorless...", nodep->fromp(), subDTypep, EXTEND_EXP,
+                                false /*noerror*/);
             }
             // iterate FINAL is two blocks above
             //
@@ -3630,10 +3646,17 @@ class WidthVisitor final : public VNVisitor {
     void methodCallClass(AstMethodCall* nodep, AstClassRefDType* adtypep) {
         // No need to width-resolve the class, as it was done when we did the child
         AstClass* const first_classp = adtypep->classp();
+        AstWith* withp = nullptr;
         if (nodep->name() == "randomize") {
+            withp = methodWithArgument(nodep, false, false, adtypep->findVoidDType(),
+                                       adtypep->findBitDType(), adtypep);
+            methodOkArguments(nodep, 0, 0);
+            methodCallLValueRecurse(nodep, nodep->fromp(), VAccess::WRITE);
             V3Randomize::newRandomizeFunc(first_classp);
             m_memberMap.clear();
         } else if (nodep->name() == "srandom") {
+            methodOkArguments(nodep, 1, 1);
+            methodCallLValueRecurse(nodep, nodep->fromp(), VAccess::WRITE);
             V3Randomize::newSRandomFunc(first_classp);
             m_memberMap.clear();
         }
@@ -3679,6 +3702,10 @@ class WidthVisitor final : public VNVisitor {
                     nodep->classOrPackagep(classp);
                     if (VN_IS(ftaskp, Task)) nodep->dtypeSetVoid();
                     processFTaskRefArgs(nodep);
+                    if (withp) {
+                        withp->v3warn(CONSTRAINTIGN, "'with' constraint ignored (unsupported)");
+                        VL_DO_DANGLING(withp->deleteTree(), withp);
+                    }
                 }
                 return;
             } else if (nodep->name() == "get_randstate" || nodep->name() == "set_randstate") {
@@ -5977,14 +6004,23 @@ class WidthVisitor final : public VNVisitor {
             m_withp = nodep;
             userIterateChildren(nodep->indexArgRefp(), nullptr);
             userIterateChildren(nodep->valueArgRefp(), nullptr);
-            if (vdtypep) {
-                userIterateAndNext(nodep->exprp(), WidthVP{nodep->dtypep(), PRELIM}.p());
-            } else {  // 'sort with' allows arbitrary type
-                userIterateAndNext(nodep->exprp(), WidthVP{SELF, PRELIM}.p());
+            if (!nodep->exprp()->hasDType()) {
+                userIterateAndNext(nodep->exprp(), nullptr);
+            } else {
+                if (vdtypep) {
+                    userIterateAndNext(nodep->exprp(), WidthVP{nodep->dtypep(), PRELIM}.p());
+                } else {  // 'sort with' allows arbitrary type
+                    userIterateAndNext(nodep->exprp(), WidthVP{SELF, PRELIM}.p());
+                }
             }
-            nodep->dtypeFrom(nodep->exprp());
-            iterateCheckAssign(nodep, "'with' return value", nodep->exprp(), FINAL,
-                               nodep->dtypep());
+
+            if (!nodep->exprp()->hasDType()) {
+                nodep->dtypeSetVoid();
+            } else {
+                nodep->dtypeFrom(nodep->exprp());
+                iterateCheckAssign(nodep, "'with' return value", nodep->exprp(), FINAL,
+                                   nodep->dtypep());
+            }
         }
     }
     void visit(AstLambdaArgRef* nodep) override {
@@ -6725,11 +6761,11 @@ class WidthVisitor final : public VNVisitor {
         (void)underp;  // cppcheck
     }
     void iterateCheckString(AstNode* nodep, const char* side, AstNode* underp, Stage stage) {
+        AstNodeDType* const expDTypep = nodep->findStringDType();
         if (stage & PRELIM) {
-            underp = userIterateSubtreeReturnEdits(underp, WidthVP{SELF, PRELIM}.p());
+            underp = userIterateSubtreeReturnEdits(underp, WidthVP{expDTypep, PRELIM}.p());
         }
         if (stage & FINAL) {
-            AstNodeDType* const expDTypep = nodep->findStringDType();
             underp = iterateCheck(nodep, side, underp, SELF, FINAL, expDTypep, EXTEND_EXP);
         }
         (void)underp;  // cppcheck

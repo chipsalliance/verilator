@@ -39,7 +39,6 @@
 #include <map>
 #include <set>
 #include <string>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -922,7 +921,7 @@ public:
         assertOneCheck();
         VpioCbList& cbObjList = s().m_cbCurrentLists[cbValueChange];
         bool called = false;
-        std::unordered_set<VerilatedVpioVar*> update;  // set of objects to update after callbacks
+        std::set<VerilatedVpioVar*> update;  // set of objects to update after callbacks
         if (cbObjList.empty()) return called;
         const auto last = std::prev(cbObjList.end());  // prevent looping over newly added elements
         for (auto it = cbObjList.begin(); true;) {
@@ -959,8 +958,8 @@ public:
     }
     static void dumpCbs() VL_MT_UNSAFE_ONE;
     static VerilatedVpiError* error_info() VL_MT_UNSAFE_ONE;  // getter for vpi error info
-    static void evalNeeded(bool evalNeeded) { s().m_evalNeeded = evalNeeded; }
     static bool evalNeeded() { return s().m_evalNeeded; }
+    static void evalNeeded(bool evalNeeded) { s().m_evalNeeded = evalNeeded; }
     static void inertialDelay(const VerilatedVpioVar* vop, p_vpi_value valuep) {
         s().m_inertialPuts.emplace_back(vop, valuep);
     }

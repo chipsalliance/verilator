@@ -222,6 +222,13 @@ Summary:
      expressions into sub-expressions to avoid error C1009, and breaking
      deep blocks into functions to avoid error C1061.
 
+.. option:: --compiler-include <header-path>
+
+   Specifies additional headers to be included in the final PCH header.
+   It is required to add them to this header, due to compilers'
+   limitation that allow only one precompiled header per compilation.
+   Use this instead of ::vlopt:`-CFLAGS` with `-include <header-path>`.
+
 .. option:: --converge-limit <loops>
 
    Rarely needed.  Specifies the maximum number of runtime iterations
@@ -1003,6 +1010,10 @@ Summary:
    sc_uint between 2 and 64.  When combined with the
    :vlopt:`--pins-sc-biguint` combination, it results in sc_uint being used
    between 2 and 64 and sc_biguint being used between 65 and 512.
+
+.. option:: --pins-sc-uint-bool
+
+   Specifies SystemC inputs/outputs one bit wide should use sc_uint<1>.
 
 .. option:: --pins-sc-biguint
 

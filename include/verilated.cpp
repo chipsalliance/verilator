@@ -2664,8 +2664,16 @@ void VerilatedContext::addModel(VerilatedModel* modelp) {
         m_ns.m_cpuTimeStart.start();
         m_ns.m_wallTimeStart.start();
     }
-    threadPoolp();  // Ensure thread pool is created, so m_threads cannot change any more
 
+    // We look for time passing, as opposed to post-eval(), as embedded
+    // models might get added inside initial blocks.
+    if (VL_UNLIKELY(time()))
+        VL_FATAL_MT(
+            "", 0, "",
+            "Adding model when time is non-zero. ... Suggest check time(), or for restarting"
+            " model use a new VerilatedContext");
+
+    threadPoolp();  // Ensure thread pool is created, so m_threads cannot change any more
     m_threadsInModels += modelp->threads();
     if (VL_UNLIKELY(modelp->threads() > m_threads)) {
         std::ostringstream msg;
@@ -2901,7 +2909,7 @@ void VerilatedContext::statsPrintSummary() VL_MT_UNSAFE {
     VL_PRINTF("- Verilator: %s at %s; walltime %0.3f s; speed %s/s\n", endwhy.c_str(),
               simtime.c_str(), walltime, simtimePerf.c_str());
     const double modelMB = VlOs::memUsageBytes() / 1024.0 / 1024.0;
-    VL_PRINTF("- Verilator: cpu %0.3f s on %d threads; alloced %0.0f MB\n", cputime,
+    VL_PRINTF("- Verilator: cpu %0.3f s on %u threads; alloced %0.0f MB\n", cputime,
               threadsInModels(), modelMB);
 }
 

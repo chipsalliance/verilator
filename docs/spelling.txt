@@ -166,6 +166,7 @@ Homebrew
 Hornung
 Hossell
 Hsu
+Huggett
 Hutt
 Hyperthreading
 Ibrahim
@@ -888,7 +889,9 @@ profcfunc
 profiler
 prototyptes
 ps
+psprintf
 pthread
+pthreads
 ptr
 pulldown
 pulldowns

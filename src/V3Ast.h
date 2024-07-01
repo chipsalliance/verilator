@@ -253,17 +253,17 @@ public:
         , m_final{false}
         , m_initial{false} {}
     class Extends {};
-    VBaseOverride(Extends)
+    explicit VBaseOverride(Extends)
         : m_extends{true}
         , m_final{false}
         , m_initial{false} {}
     class Final {};
-    VBaseOverride(Final)
+    explicit VBaseOverride(Final)
         : m_extends{false}
         , m_final{true}
         , m_initial{false} {}
     class Initial {};
-    VBaseOverride(Initial)
+    explicit VBaseOverride(Initial)
         : m_extends{false}
         , m_final{false}
         , m_initial{true} {}
@@ -2076,8 +2076,8 @@ public:
     void fileline(FileLine* fl) { m_fileline = fl; }
     inline bool width1() const;
     inline int widthInstrs() const;
-    void didWidth(bool flag) { m_flags.didWidth = flag; }
     bool didWidth() const { return m_flags.didWidth; }
+    void didWidth(bool flag) { m_flags.didWidth = flag; }
     bool didWidthAndSet() {
         if (didWidth()) return true;
         didWidth(true);
