@@ -287,7 +287,7 @@ void V3ParseImp::preprocDumps(std::ostream& os, bool forInputs) {
 void V3ParseImp::parseFile(FileLine* fileline, const string& modfilename, bool inLibrary,
                            const string& errmsg) {  // "" for no error, make fake node
     const string nondirname = V3Os::filenameNonDir(modfilename);
-    const string modname = V3Os::filenameNonExt(modfilename);
+    const string modname = V3Os::filenameNonDirExt(modfilename);
 
     UINFO(2, __FUNCTION__ << ": " << modname << (inLibrary ? " [LIB]" : "") << endl);
     m_lexFileline = new FileLine{fileline};
@@ -404,9 +404,9 @@ size_t V3ParseImp::tokenPipeScanParam(size_t depth) {
     int parens = 1;  // Count first (
     while (true) {
         const int tok = tokenPeekp(depth)->token;
-        if (tok == 0) {
+        if (tok == 0) {  // LCOV_EXCL_BR_LINE
             UINFO(9, "tokenPipeScanParam hit EOF; probably syntax error to come");
-            break;
+            break;  // LCOV_EXCL_LINE
         } else if (tok == '(') {
             ++parens;
         } else if (tok == ')') {
@@ -430,9 +430,9 @@ size_t V3ParseImp::tokenPipeScanType(size_t depth) {
     int parens = 1;  // Count first (
     while (true) {
         const int tok = tokenPeekp(depth)->token;
-        if (tok == 0) {
+        if (tok == 0) {  // LCOV_EXCL_BR_LINE
             UINFO(9, "tokenPipeScanType hit EOF; probably syntax error to come");
-            break;
+            break;  // LCOV_EXCL_LINE
         } else if (tok == '(') {
             ++parens;
         } else if (tok == ')') {
@@ -693,3 +693,4 @@ void V3Parse::parseFile(FileLine* fileline, const string& modname, bool inLibrar
 void V3Parse::ppPushText(V3ParseImp* impp, const string& text) {
     if (text != "") impp->ppPushText(text);
 }
+void V3Parse::candidatePli(VSpellCheck* spellerp) { V3ParseImp::candidatePli(spellerp); }

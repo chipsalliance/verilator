@@ -398,13 +398,16 @@ class AstNodeCoverOrAssert VL_NOT_FINAL : public AstNodeStmt {
     // op3 used by some sub-types only
     // @astgen op4 := passsp: List[AstNode] // Statements when propp is passing/truthly
     string m_name;  // Name to report
-    const bool m_immediate;  // Immediate assertion/cover
+    const VAssertType m_type;  // Assertion/cover type
+    const VAssertDirectiveType m_directive;  // Assertion directive type
+
 public:
-    AstNodeCoverOrAssert(VNType t, FileLine* fl, AstNode* propp, AstNode* passsp, bool immediate,
-                         const string& name = "")
+    AstNodeCoverOrAssert(VNType t, FileLine* fl, AstNode* propp, AstNode* passsp, VAssertType type,
+                         VAssertDirectiveType directive, const string& name = "")
         : AstNodeStmt{t, fl}
         , m_name{name}
-        , m_immediate{immediate} {
+        , m_type{type}
+        , m_directive{directive} {
         this->propp(propp);
         this->addPasssp(passsp);
     }
@@ -414,7 +417,14 @@ public:
     void name(const string& name) override { m_name = name; }
     void dump(std::ostream& str = std::cout) const override;
     void dumpJson(std::ostream& str = std::cout) const override;
-    bool immediate() const { return m_immediate; }
+    VAssertType type() const { return m_type; }
+    VAssertDirectiveType directive() const { return m_directive; }
+    bool immediate() const {
+        return this->type().containsAny(VAssertType::SIMPLE_IMMEDIATE
+                                        | VAssertType::OBSERVED_DEFERRED_IMMEDIATE
+                                        | VAssertType::FINAL_DEFERRED_IMMEDIATE)
+               || this->type() == VAssertType::INTERNAL;
+    }
 };
 class AstNodeFor VL_NOT_FINAL : public AstNodeStmt {
     // @astgen op1 := initsp : List[AstNode]
@@ -1058,24 +1068,6 @@ public:
     bool same(const AstNode*) const override { return true; }
     string path() const { return m_path; }
 };
-class AstDistItem final : public AstNode {
-    // Constraint distribution item
-    // @astgen op1 := rangep : AstNodeExpr
-    // @astgen op2 := weightp : AstNodeExpr
-    bool m_isWhole = false;  // True for weight ':/', false for ':='
-public:
-    AstDistItem(FileLine* fl, AstNodeExpr* rangep, AstNodeExpr* weightp)
-        : ASTGEN_SUPER_DistItem(fl) {
-        this->rangep(rangep);
-        this->weightp(weightp);
-    }
-    ASTGEN_MEMBERS_AstDistItem;
-    bool isGateOptimizable() const override { return false; }
-    bool isPredictOptimizable() const override { return false; }
-    bool same(const AstNode* /*samep*/) const override { return true; }
-    void isWhole(bool flag) { m_isWhole = flag; }
-    bool isWhole() const { return m_isWhole; }
-};
 class AstDpiExport final : public AstNode {
     // We could put an AstNodeFTaskRef instead of the verilog function name,
     // however we're not *calling* it, so that seems somehow wrong.
@@ -1105,7 +1097,7 @@ public:
         BROKEN_RTN(!fmtp());
         return nullptr;
     }
-    string verilogKwd() const override { return string{"$"} + string{displayType().ascii()}; }
+    string verilogKwd() const override { return "$"s + string{displayType().ascii()}; }
     bool isGateOptimizable() const override { return false; }
     bool isPredictOptimizable() const override { return false; }
     bool isPure() override { return false; }  // SPECIAL: $display has 'visual' ordering
@@ -2346,6 +2338,42 @@ public:
     // Return the lowest class extended from, or this class
     AstClass* baseMostClassp();
     static bool isCacheableChild(const AstNode* nodep);
+    // Iterates top level members of the class, taking into account inheritance (starting from the
+    // root superclass). Note: after V3Scope, several children are moved under an AstScope and will
+    // not be found by this.
+    template <typename Callable>
+    void foreachMember(const Callable& f) {
+        using T_Node = typename FunctionArgNoPointerNoCV<Callable, 1>::type;
+        static_assert(
+            vlstd::is_invocable<Callable, AstClass*, T_Node*>::value
+                && std::is_base_of<AstNode, T_Node>::value,
+            "Callable 'f' must have a signature compatible with 'void(AstClass*, T_Node*)', "
+            "with 'T_Node' being a subtype of 'AstNode'");
+        if (AstClassExtends* const extendsp = this->extendsp()) {
+            extendsp->classp()->foreachMember(f);
+        }
+        for (AstNode* stmtp = stmtsp(); stmtp; stmtp = stmtp->nextp()) {
+            if (AstNode::privateTypeTest<T_Node>(stmtp)) f(this, static_cast<T_Node*>(stmtp));
+        }
+    }
+    // Same as above, but stops after first match
+    template <typename Callable>
+    bool existsMember(const Callable& p) const {
+        using T_Node = typename FunctionArgNoPointerNoCV<Callable, 1>::type;
+        static_assert(vlstd::is_invocable_r<bool, Callable, const AstClass*, const T_Node*>::value
+                          && std::is_base_of<AstNode, T_Node>::value,
+                      "Predicate 'p' must have a signature compatible with 'bool(const AstClass*, "
+                      "const T_Node*)', with 'T_Node' being a subtype of 'AstNode'");
+        if (AstClassExtends* const extendsp = this->extendsp()) {
+            if (extendsp->classp()->existsMember(p)) return true;
+        }
+        for (AstNode* stmtp = stmtsp(); stmtp; stmtp = stmtp->nextp()) {
+            if (AstNode::privateTypeTest<T_Node>(stmtp)) {
+                if (p(this, static_cast<T_Node*>(stmtp))) return true;
+            }
+        }
+        return false;
+    }
 };
 class AstClassPackage final : public AstNodeModule {
     // The static information portion of a class (treated similarly to a package)
@@ -2588,16 +2616,18 @@ public:
 };
 class AstAssertCtl final : public AstNodeStmt {
     // @astgen op1 := controlTypep : AstNodeExpr
-    // @astgen op2 := levelp : AstNodeExpr
-    // @astgen op3 := itemsp : List[AstNodeExpr]
+    // @astgen op2 := assertTypesp : Optional[AstNodeExpr]
+    // @astgen op3 := directiveTypesp : Optional[AstNodeExpr]
     // Type of assertcontrol task; either known from parser or from evaluated
     // controlTypep expression.
-    VAssertCtlType m_ctlType;  // $assert keyword type
+    VAssertCtlType m_ctlType;  // $assert keyword type (control_type)
+    VAssertType m_assertTypes;  // Types of assertions affected
+    VAssertDirectiveType m_directiveTypes;  // Types of directives affected
 
 public:
     AstAssertCtl(FileLine* fl, VAssertCtlType ctlType, AstNodeExpr* levelp = nullptr,
                  AstNodeExpr* itemsp = nullptr);
-    AstAssertCtl(FileLine* fl, AstNodeExpr* controlTypep, AstNodeExpr* assertionTypep = nullptr,
+    AstAssertCtl(FileLine* fl, AstNodeExpr* controlTypep, AstNodeExpr* assertTypesp = nullptr,
                  AstNodeExpr* directiveTypep = nullptr, AstNodeExpr* levelp = nullptr,
                  AstNodeExpr* itemsp = nullptr);
     ASTGEN_MEMBERS_AstAssertCtl;
@@ -2608,6 +2638,10 @@ public:
     bool isOutputter() override { return true; }
     VAssertCtlType ctlType() const { return m_ctlType; }
     void ctlType(int32_t type) { m_ctlType = VAssertCtlType{type}; }
+    VAssertType ctlAssertTypes() const { return m_assertTypes; }
+    void ctlAssertTypes(VAssertType types) { m_assertTypes = types; }
+    VAssertDirectiveType ctlDirectiveTypes() const { return m_directiveTypes; }
+    void ctlDirectiveTypes(VAssertDirectiveType types) { m_directiveTypes = types; }
     void dump(std::ostream& str = std::cout) const override;
     void dumpJson(std::ostream& str = std::cout) const override;
 };
@@ -2883,8 +2917,8 @@ public:
         return nullptr;
     }
     string verilogKwd() const override {
-        return (filep() ? string{"$f"} + string{displayType().ascii()}
-                        : string{"$"} + string{displayType().ascii()});
+        return (filep() ? "$f"s + string{displayType().ascii()}
+                        : "$"s + string{displayType().ascii()});
     }
     bool isGateOptimizable() const override { return false; }
     bool isPredictOptimizable() const override { return false; }
@@ -3021,6 +3055,7 @@ class AstJumpBlock final : public AstNodeStmt {
     //
     // @astgen ptr := m_labelp : AstJumpLabel  // [After V3Jump] Pointer to declaration
     int m_labelNum = 0;  // Set by V3EmitCSyms to tell final V3Emit what to increment
+    VIsCached m_purity;  // Pure state
 public:
     // After construction must call ->labelp to associate with appropriate label
     AstJumpBlock(FileLine* fl, AstNode* stmtsp)
@@ -3036,6 +3071,10 @@ public:
     void labelNum(int flag) { m_labelNum = flag; }
     AstJumpLabel* labelp() const { return m_labelp; }
     void labelp(AstJumpLabel* labelp) { m_labelp = labelp; }
+    bool isPure() override;
+
+private:
+    bool getPurityRecurse() const;
 };
 class AstJumpGo final : public AstNodeStmt {
     // Jump point; branch down to a JumpLabel
@@ -3227,6 +3266,7 @@ public:
         this->exprp(exprp);
     }
     ASTGEN_MEMBERS_AstStmtExpr;
+    bool isPure() override { return exprp()->isPure(); }
 };
 class AstStop final : public AstNodeStmt {
 public:
@@ -3619,11 +3659,12 @@ public:
 // === AstNodeCoverOrAssert ===
 class AstAssert final : public AstNodeCoverOrAssert {
     // @astgen op3 := failsp: List[AstNode] // Statements when propp is failing/falsey
+
 public:
     ASTGEN_MEMBERS_AstAssert;
-    AstAssert(FileLine* fl, AstNode* propp, AstNode* passsp, AstNode* failsp, bool immediate,
-              const string& name = "")
-        : ASTGEN_SUPER_Assert(fl, propp, passsp, immediate, name) {
+    AstAssert(FileLine* fl, AstNode* propp, AstNode* passsp, AstNode* failsp, VAssertType type,
+              VAssertDirectiveType directive, const string& name = "")
+        : ASTGEN_SUPER_Assert(fl, propp, passsp, type, directive, name) {
         this->addFailsp(failsp);
     }
 };
@@ -3633,8 +3674,10 @@ class AstAssertIntrinsic final : public AstNodeCoverOrAssert {
 public:
     ASTGEN_MEMBERS_AstAssertIntrinsic;
     AstAssertIntrinsic(FileLine* fl, AstNode* propp, AstNode* passsp, AstNode* failsp,
-                       bool immediate, const string& name = "")
-        : ASTGEN_SUPER_AssertIntrinsic(fl, propp, passsp, immediate, name) {
+                       const string& name = "")
+        // Intrinsic asserts are always enabled thus 'type' field is set to INTERNAL.
+        : ASTGEN_SUPER_AssertIntrinsic(fl, propp, passsp, VAssertType::INTERNAL,
+                                       VAssertDirectiveType::INTRINSIC, name) {
         this->addFailsp(failsp);
     }
 };
@@ -3642,16 +3685,17 @@ class AstCover final : public AstNodeCoverOrAssert {
     // @astgen op3 := coverincsp: List[AstNode] // Coverage node
 public:
     ASTGEN_MEMBERS_AstCover;
-    AstCover(FileLine* fl, AstNode* propp, AstNode* stmtsp, bool immediate,
+    AstCover(FileLine* fl, AstNode* propp, AstNode* stmtsp, VAssertType type,
              const string& name = "")
-        : ASTGEN_SUPER_Cover(fl, propp, stmtsp, immediate, name) {}
-    virtual bool immediate() const { return false; }
+        : ASTGEN_SUPER_Cover(fl, propp, stmtsp, type, VAssertDirectiveType::COVER, name) {}
 };
 class AstRestrict final : public AstNodeCoverOrAssert {
 public:
     ASTGEN_MEMBERS_AstRestrict;
     AstRestrict(FileLine* fl, AstNode* propp)
-        : ASTGEN_SUPER_Restrict(fl, propp, nullptr, false, "") {}
+        // Intrinsic asserts are always ignored thus 'type' field is set to INTERNAL.
+        : ASTGEN_SUPER_Restrict(fl, propp, nullptr, VAssertType::INTERNAL,
+                                VAssertDirectiveType::RESTRICT) {}
 };
 
 // === AstNodeFor ===

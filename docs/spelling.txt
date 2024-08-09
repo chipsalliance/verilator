@@ -379,6 +379,7 @@ Srini
 Srinivasan
 Stamness
 Stephane
+Sterin
 Stoddard
 Stroebel
 Strouble
@@ -497,6 +498,7 @@ architected
 args
 arrarys
 assertOn
+assertcontrol
 astgen
 async
 atClone
@@ -701,6 +703,7 @@ genvar
 genvars
 getenv
 getline
+getter
 ggdb
 glibc
 gmake

@@ -15,12 +15,52 @@ Verilator 5.027 devel
 
 * Support state-dependent constraints (#5217). [Arkadiusz Kozdra, Antmicro Ltd.]
 * Support cross-module clocking variable access (#5184). [Arkadiusz Kozdra, Antmicro Ltd.]
+* Support inline constraints for class randomization methods (#5234). [Krzysztof Boroński]
+* Support clocking blocks in virtual interfaces (#5235). [Arkadiusz Kozdra, Antmicro Ltd.]
+* Support `$assertcontrol` assertion_type (#5236). [Bartłomiej Chmiel, Antmicro Ltd.]
+* Support conditional constraints (#5245). [Arkadiusz Kozdra, Antmicro Ltd.]
+* Support`--compiler-include` headers in user-supplied cpp files  (#5271). [Bartłomiej Chmiel, Antmicro Ltd.]
+* Support `rand_mode` (#5273). [Krzysztof Bieganski, Antmicro Ltd.]
+* Support `this.randomize with` (#5282). [Arkadiusz Kozdra, Antmicro Ltd.]
+* Support foreach constraints (#5302). [Arkadiusz Kozdra, Antmicro Ltd.]
 * Add `--compiler-include` for additional C++ includes (#5139) (#5202). [Bartłomiej Chmiel, Antmicro Ltd.]
+* Add `--emit-accessors` (#5182) (#5227). [Ryan Ziegler]
+* Add suggestions on misspelled PLI functions.
+* Add warning on dist in constraints (#5264). [Arkadiusz Kozdra, Antmicro Ltd.]
+* Improve emitted code to use a reference for VlSelf (#5254). [Yangyu Chen]
+* Fix monitor block sensitivity items (#4400) (#5294). [Udaya Raj Subedi]
 * Fix fusing macro arguments to not ignore whitespace (#5061). [Tudor Timi]
+* Fix classes/modules of case-similar names (#5109). [Arkadiusz Kozdra]
 * Fix mis-removing $value$plusargs calls (#5127) (#5137). [Seth Pellegrino]
+* Fix incorrect result of width mismatch (#5186) (#5189). [Yutetsu TAKATSUKASA]
+* Fix compiler coroutine check (#5190) (#5300). [Ricardo Barbedo]
+* Fix `--x-assign` to be independent from `+verilator+rand+reset` (#5214). [Andrew Nolte]
 * Fix splitting if statements with impure conditions (#5219). [Bartłomiej Chmiel, Antmicro Ltd.]
+* Fix unknown conversion on queues (#5220). [Alex Solomatnikov]
 * Fix top-level unpacked structure resets (#5221).
 * Fix concurrency for mailbox and semaphores (#5222). [Liam Braun]
+* Fix toggle coverage aggregation on same line (#5248). [Krzysztof Obłonczek]
+* Fix error on empty generate with -O0 (#5250).
+* Fix unconstrained randomization of unpacked structs (#5252). [Krzysztof Bieganski, Antmicro Ltd.]
+* Fix inlining of variables driven from forced vars (#5259). [Geza Lore]
+* Fix tracing with `--main-top-name -` (#5261). [Ethan Sifferman]
+* Fix randomization when used with inheritance (#5268). [Krzysztof Bieganski, Antmicro Ltd.]
+* Fix inline constraints creating class random generator (#5280). [Krzysztof Bieganski, Antmicro Ltd.]
+* Fix WIDTHEXPAND on left shift of intuitive amount (#5284). [Greg Taylor]
+* Fix elaborating foreach loops (#5285). [Arkadiusz Kozdra, Antmicro Ltd.]
+* Fix initializing static array in dynamic arrays and queues (#5287). [Baruch Sterin]
+* Fix WIDTHEXPAND on left shift of intuitive amount (#5284). [Wilson Snyder]
+* Fix initializing static array in dynamic arrays and queues (#5287). [Wilson Snyder]
+* Fix static variable initializers in procedures (#5296). [Bartłomiej Chmiel, Antmicro Ltd.]
+* Fix randomizing current object with `rand` class instance member (#5292). [Krzysztof Bieganski, Antmicro Ltd.]
+* Fix handling of rand fields not referenced in constraints (#5305). [Ryszard Rozak, Antmicro Ltd.]
+* Fix Python3 path discovery in make flows to avoid mixing system and user python interpreters (#5307) [Markus Krause]
+* Fix make flows to pass PYTHON3 (like PERL) (#5307) (#5308). [Markus Krause]
+* Fix stringify in nested preprocessor macros (#5323). [Krzysztof Bieganski, Antmicro Ltd.]
+* Fix $sformat with array arguments (#5330). [Abe Jordan]
+* Fix ==? and !=? with X values.
+* Fix CPU time being zero.
+* Fix inline function ref port persistence.
 
 
 Verilator 5.026 2024-06-15
@@ -640,7 +680,7 @@ Verilator 5.006 2023-01-22
 **Minor:**
 
 * Support clocking blocks (#3674). [Krzysztof Bieganski, Antmicro Ltd]
-* Support packed structs (#3802). [Aleksander Kiryk, Antmicro Ltd]
+* Support unpacked structs (#3802). [Aleksander Kiryk, Antmicro Ltd]
 * Support Windows-native builds using cmake (#3814). [Kritik Bhimani]
 * Support p format for UnpackArray (#3877). [Aleksander Kiryk, Antmicro Ltd]
 * Support property calls without parenthesis (#3879) (#3893). [Ryszard Rozak, Antmicro Ltd]
@@ -1531,6 +1571,7 @@ Verilator 4.026 2020-01-11
 * Fix expand optimization slowing --lint-only. Closes #2091. [Thomas Watts]
 * Fix %{number}s with strings. #2093. [agrobman]
 * Fix shebang breaking some shells. Closes #2067. [zdave]
+* Fix errors on using string in incorrect format (#5240). [John Demme]
 
 
 Verilator 4.024 2019-12-08

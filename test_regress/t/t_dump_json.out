@@ -491,28 +491,26 @@
           {"type":"ASSERTCTL","name":"","addr":"(WH)","loc":"d,86:7,86:17","ctlType":"$assertoff",
            "controlTypep": [
             {"type":"CONST","name":"32'h4","addr":"(XH)","loc":"d,86:7,86:17","dtypep":"(MC)"}
-          ],
-           "levelp": [
-            {"type":"CONST","name":"32'h0","addr":"(YH)","loc":"d,86:7,86:17","dtypep":"(MC)"}
-          ],"itemsp": []},
-          {"type":"ASSERTCTL","name":"","addr":"(ZH)","loc":"d,87:7,87:18","ctlType":"$assertkill",
+          ],"assertTypesp": [],"directiveTypesp": []},
+          {"type":"ASSERTCTL","name":"","addr":"(YH)","loc":"d,87:7,87:18","ctlType":"$assertkill",
            "controlTypep": [
-            {"type":"CONST","name":"32'h5","addr":"(AI)","loc":"d,87:7,87:18","dtypep":"(MC)"}
-          ],
-           "levelp": [
-            {"type":"CONST","name":"32'h0","addr":"(BI)","loc":"d,87:7,87:18","dtypep":"(MC)"}
-          ],"itemsp": []},
-          {"type":"ASSERT","name":"","addr":"(CI)","loc":"d,88:7,88:13","immediate":true,
+            {"type":"CONST","name":"32'h5","addr":"(ZH)","loc":"d,87:7,87:18","dtypep":"(MC)"}
+          ],"assertTypesp": [],"directiveTypesp": []},
+          {"type":"ASSERT","name":"","addr":"(AI)","loc":"d,88:7,88:13","type":"[SIMPLE_IMMEDIATE]",
            "propp": [
-            {"type":"CONST","name":"?32?sh0","addr":"(DI)","loc":"d,88:14,88:15","dtypep":"(L)"}
+            {"type":"CONST","name":"?32?sh0","addr":"(BI)","loc":"d,88:14,88:15","dtypep":"(L)"}
           ],"sentreep": [],"failsp": [],"passsp": []},
-          {"type":"ASSERTCTL","name":"","addr":"(EI)","loc":"d,89:7,89:16","ctlType":"$asserton",
+          {"type":"ASSERTCTL","name":"","addr":"(CI)","loc":"d,89:7,89:16","ctlType":"$asserton",
            "controlTypep": [
-            {"type":"CONST","name":"32'h3","addr":"(FI)","loc":"d,89:7,89:16","dtypep":"(MC)"}
+            {"type":"CONST","name":"32'h3","addr":"(DI)","loc":"d,89:7,89:16","dtypep":"(MC)"}
+          ],"assertTypesp": [],"directiveTypesp": []},
+          {"type":"ASSERTCTL","name":"","addr":"(EI)","loc":"d,90:7,90:21","ctlType":"",
+           "controlTypep": [
+            {"type":"CONST","name":"?32?sh3","addr":"(FI)","loc":"d,90:22,90:23","dtypep":"(QD)"}
           ],
-           "levelp": [
-            {"type":"CONST","name":"32'h0","addr":"(GI)","loc":"d,89:7,89:16","dtypep":"(MC)"}
-          ],"itemsp": []}
+           "assertTypesp": [
+            {"type":"CONST","name":"?32?sh8","addr":"(GI)","loc":"d,90:25,90:26","dtypep":"(JF)"}
+          ],"directiveTypesp": []}
         ]}
       ]}
     ]}

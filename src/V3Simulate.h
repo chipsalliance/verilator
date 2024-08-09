@@ -183,11 +183,11 @@ public:
         //  and fetchConst should not be called or it may assert.
         if (!m_whyNotNodep) {
             m_whyNotNodep = nodep;
-            if (debug() >= 5) {
+            if (debug() >= 5) {  // LCOV_EXCL_START
                 UINFO(0, "Clear optimizable: " << why);
                 if (nodep) std::cout << ": " << nodep;
                 std::cout << std::endl;
-            }
+            }  // LCOV_EXCL_STOP
             m_whyNotOptimizable = why;
             std::ostringstream stack;
             for (const auto& callstack : vlstd::reverse_view(m_callStack)) {
@@ -551,7 +551,12 @@ private:
     }
     void visit(AstInitArray* nodep) override {
         checkNodeInfo(nodep);
+        iterateChildrenConst(nodep);
         if (!m_checkOnly && optimizable()) newValue(nodep, nodep);
+    }
+    void visit(AstInitItem* nodep) override {
+        checkNodeInfo(nodep);
+        iterateChildrenConst(nodep);
     }
     void visit(AstEnumItemRef* nodep) override {
         checkNodeInfo(nodep);
@@ -833,7 +838,7 @@ private:
                 clearOptimizable(nodep, "Array initialization has too few elements, need element "
                                             + cvtToStr(offset));
             } else {
-                setValue(nodep, itemp);
+                setValue(nodep, fetchValue(itemp));
             }
         } else {
             clearOptimizable(nodep, "Array select of non-array");

@@ -2591,15 +2591,10 @@ type_declaration<nodep>:        // ==IEEE: type_declaration
                           AstNodeDType* const dtp = GRAMMARP->createArray(refp, $4, true);
                           $$ = GRAMMARP->createTypedef($<fl>5, *$5, $7, dtp, $6); }
         //                      //
-        |       yTYPEDEF id/*interface*/ '.' idAny/*type*/ idAny/*type*/ dtypeAttrListE ';'
+        |       yTYPEDEF idAny/*interface*/ '.' idAny/*type*/ idAny/*type*/ dtypeAttrListE ';'
                         { $$ = nullptr; BBUNSUP($1, "Unsupported: SystemVerilog 2005 typedef in this context"); }
-        //                      // Allow redeclaring same typedef again
-        //                      // Alternative is use of idAny below, but this will cause conflicts with ablve
-        |       yTYPEDEF idType ';'                     { $$ = GRAMMARP->createTypedefFwd($<fl>2, *$2); }
-        //                      // Combines into above "data_type id" rule
-        //                      // Verilator: Not important what it is in the AST, just need
-        //                      // to make sure the yaID__aTYPE gets returned
-        |       yTYPEDEF id ';'                         { $$ = GRAMMARP->createTypedefFwd($<fl>2, *$2); }
+        //                      // idAny as also allows redeclaring same typedef again
+        |       yTYPEDEF idAny ';'                      { $$ = GRAMMARP->createTypedefFwd($<fl>2, *$2); }
         //                      // IEEE: expanded forward_type to prevent conflict
         |       yTYPEDEF yENUM idAny ';'                { $$ = GRAMMARP->createTypedefFwd($<fl>3, *$3); }
         |       yTYPEDEF ySTRUCT idAny ';'              { $$ = GRAMMARP->createTypedefFwd($<fl>3, *$3); }
@@ -3646,7 +3641,8 @@ statement_item<nodep>:          // IEEE: statement_item
         |       statementFor                            { $$ = $1; }
         |       yDO stmtBlock yWHILE '(' expr ')' ';'   { $$ = new AstDoWhile{$1, $5, $2}; }
         //                      // IEEE says array_identifier here, but dotted accepted in VMM and 1800-2009
-        |       yFOREACH '(' idClassSelForeach ')' stmtBlock    { $$ = new AstForeach{$1, $3, $5}; }
+        |       yFOREACH '(' idClassSelForeach ')' stmtBlock
+                        { $$ = new AstBegin{$1, "", new AstForeach{$1, $3, $5}, false, true}; }
         //
         //                      // IEEE: jump_statement
         |       yRETURN ';'                             { $$ = new AstReturn{$1}; }
@@ -4269,7 +4265,7 @@ system_t_call<nodeStmtp>:       // IEEE: system_tf_call (as task)
                         { FileLine* const fl_nowarn = new FileLine{$1};
                           fl_nowarn->warnOff(V3ErrorCode::WIDTH, true);
                           $$ = new AstAssertIntrinsic{fl_nowarn, new AstCastDynamic{fl_nowarn, $5, $3},
-                                                      nullptr, nullptr, true}; }
+                                                      nullptr, nullptr}; }
         //
         // Any system function as a task
         |       system_f_call_or_t                      { $$ = new AstSysFuncAsTask{$<fl>1, $1}; }
@@ -5011,7 +5007,7 @@ expr<nodeExprp>:                // IEEE: part of expression/constant_expression/
         //                      // IEEE: cast/constant_cast
         //                      // expanded from casting_type
         |       simple_type yP_TICK '(' expr ')'
-                        { $$ = new AstCast{$1->fileline(), $4, VFlagChildDType{}, $1}; }
+                        { $$ = new AstCast{$2, $4, VFlagChildDType{}, $1}; }
         |       yTYPE__ETC '(' exprOrDataType ')' yP_TICK '(' expr ')'
                         { $$ = new AstCast{$1, $7, VFlagChildDType{},
                                            new AstRefDType{$1, AstRefDType::FlagTypeOfExpr{}, $3}}; }
@@ -5057,7 +5053,7 @@ expr<nodeExprp>:                // IEEE: part of expression/constant_expression/
         //
         //                      // IEEE: expression_or_dist - here to avoid reduce problems
         //                      // "expr yDIST '{' dist_list '}'"
-        |       ~l~expr yDIST '{' dist_list '}'         { $$ = $1; $4->deleteTree(); }
+        |       ~l~expr yDIST '{' dist_list '}'         { $$ = new AstDist{$2, $1, $4}; }
         ;
 
 fexpr<nodeExprp>:                   // For use as first part of statement (disambiguates <=)
@@ -6002,37 +5998,38 @@ immediate_assertion_statement<nodep>:   // ==IEEE: immediate_assertion_statement
 simple_immediate_assertion_statement<nodep>:    // ==IEEE: simple_immediate_assertion_statement
         //                      // action_block expanded here, for compatibility with AstAssert
                 assertOrAssume '(' expr ')' stmtBlock %prec prLOWER_THAN_ELSE
-                        { $$ = new AstAssert{$1, $3, $5, nullptr, true}; }
+                        { $$ = new AstAssert{$<fl>1, $3, $5, nullptr, VAssertType::SIMPLE_IMMEDIATE, $1}; }
         |       assertOrAssume '(' expr ')'           yELSE stmtBlock
-                        { $$ = new AstAssert{$1, $3, nullptr, $6, true}; }
+                        { $$ = new AstAssert{$<fl>1, $3, nullptr, $6, VAssertType::SIMPLE_IMMEDIATE, $1}; }
         |       assertOrAssume '(' expr ')' stmtBlock yELSE stmtBlock
-                        { $$ = new AstAssert{$1, $3, $5, $7, true}; }
+                        { $$ = new AstAssert{$<fl>1, $3, $5, $7, VAssertType::SIMPLE_IMMEDIATE, $1}; }
         //                      // IEEE: simple_immediate_cover_statement
-        |       yCOVER '(' expr ')' stmt                { $$ = new AstCover{$1, $3, $5, true}; }
+        |       yCOVER '(' expr ')' stmt                { $$ = new AstCover{$1, $3, $5, VAssertType::SIMPLE_IMMEDIATE}; }
         ;
 
-assertOrAssume<fl>:
-                yASSERT                                 { $$ = $1; }
-        |       yASSUME                                 { $$ = $1; }
+assertOrAssume<assertdirectivetypeen>:
+                yASSERT                                 { $$ = VAssertDirectiveType::ASSERT; }
+        |       yASSUME                                 { $$ = VAssertDirectiveType::ASSUME; }
         ;
 
-final_zero:                     // IEEE: part of deferred_immediate_assertion_statement
+final_zero<asserttypeen>:                     // IEEE: part of deferred_immediate_assertion_statement
                 '#' yaINTNUM
-                        { if ($2->isNeqZero()) { $<fl>2->v3error("Deferred assertions must use '#0' (IEEE 1800-2023 16.4)"); } }
+                        { if ($2->isNeqZero()) { $<fl>2->v3error("Deferred assertions must use '#0' (IEEE 1800-2023 16.4)"); }
+                          $$ = VAssertType::OBSERVED_DEFERRED_IMMEDIATE; }
         //                      // 1800-2012:
-        |       yFINAL                                                  { }
+        |       yFINAL                                                  { $$ = VAssertType::FINAL_DEFERRED_IMMEDIATE; }
         ;
 
 deferred_immediate_assertion_statement<nodep>:  // ==IEEE: deferred_immediate_assertion_statement
         //                      // IEEE: deferred_immediate_assert_statement
                 assertOrAssume final_zero '(' expr ')' stmtBlock %prec prLOWER_THAN_ELSE
-                        { $$ = new AstAssert{$1, $4, $6, nullptr, true}; }
+                        { $$ = new AstAssert{$<fl>1, $4, $6, nullptr, $2, $1}; }
         |       assertOrAssume final_zero '(' expr ')'           yELSE stmtBlock
-                        { $$ = new AstAssert{$1, $4, nullptr, $7, true}; }
+                        { $$ = new AstAssert{$<fl>1, $4, nullptr, $7, $2, $1}; }
         |       assertOrAssume final_zero '(' expr ')' stmtBlock yELSE stmtBlock
-                        { $$ = new AstAssert{$1, $4, $6, $8, true}; }
+                        { $$ = new AstAssert{$<fl>1, $4, $6, $8, $2, $1}; }
         //                      // IEEE: deferred_immediate_cover_statement
-        |       yCOVER final_zero '(' expr ')' stmt     { $$ = new AstCover{$1, $4, $6, true}; }
+        |       yCOVER final_zero '(' expr ')' stmt     { $$ = new AstCover{$1, $4, $6, $2}; }
         ;
 
 concurrent_assertion_item<nodep>:       // IEEE: concurrent_assertion_item
@@ -6048,14 +6045,14 @@ concurrent_assertion_statement<nodep>:  // ==IEEE: concurrent_assertion_statemen
         //                      // IEEE: assume_property_statement
         //                      // action_block expanded here
                 assertOrAssume yPROPERTY '(' property_spec ')' stmt %prec prLOWER_THAN_ELSE
-                        { $$ = new AstAssert{$1, new AstSampled{$1, $4}, $6, nullptr, false}; }
+                        { $$ = new AstAssert{$<fl>1, new AstSampled{$<fl>1, $4}, $6, nullptr, VAssertType::CONCURRENT, $1}; }
         |       assertOrAssume yPROPERTY '(' property_spec ')' stmt yELSE stmt
-                        { $$ = new AstAssert{$1, new AstSampled{$1, $4}, $6, $8, false}; }
+                        { $$ = new AstAssert{$<fl>1, new AstSampled{$<fl>1, $4}, $6, $8, VAssertType::CONCURRENT, $1}; }
         |       assertOrAssume yPROPERTY '(' property_spec ')' yELSE stmt
-                        { $$ = new AstAssert{$1, new AstSampled{$1, $4}, nullptr, $7, false}; }
+                        { $$ = new AstAssert{$<fl>1, new AstSampled{$<fl>1, $4}, nullptr, $7, VAssertType::CONCURRENT, $1}; }
         //                      // IEEE: cover_property_statement
         |       yCOVER yPROPERTY '(' property_spec ')' stmtBlock
-                        { $$ = new AstCover{$1, $4, $6, false}; }
+                        { $$ = new AstCover{$1, $4, $6, VAssertType::CONCURRENT}; }
         //                      // IEEE: cover_sequence_statement
         |       yCOVER ySEQUENCE '(' sexpr ')' stmt
                         { $$ = nullptr; BBUNSUP($2, "Unsupported: cover sequence"); }
@@ -7382,7 +7379,7 @@ constraint_set<nodep>:  // ==IEEE: constraint_set
         |       '{' constraint_expressionList '}'       { $$ = $2; }
         ;
 
-dist_list<nodep>:  // ==IEEE: dist_list
+dist_list<distItemp>:  // ==IEEE: dist_list
                 dist_item                               { $$ = $1; }
         |       dist_list ',' dist_item                 { $$ = addNextNull($1, $3); }
         ;
