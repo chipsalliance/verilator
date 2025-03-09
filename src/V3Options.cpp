@@ -506,7 +506,7 @@ string V3Options::fileExists(const string& filename) {
         m_impp->m_dirMap.emplace(dir, std::set<string>());
         diriter = m_impp->m_dirMap.find(dir);
 
-        std::set<string>* setp = &(diriter->second);
+        std::set<string>* const setp = &(diriter->second);
 
 #ifdef _MSC_VER
         try {
@@ -524,13 +524,11 @@ string V3Options::fileExists(const string& filename) {
 #endif
     }
     // Find it
-    const std::set<string>* filesetp = &(diriter->second);
+    const std::set<string>* const filesetp = &(diriter->second);
     const auto fileiter = filesetp->find(basename);
-    if (fileiter == filesetp->end()) {
-        return "";  // Not found
-    }
+    if (fileiter == filesetp->end()) return "";  // Not found
     // Check if it is a directory, ignore if so
-    string filenameOut = V3Os::filenameJoin(dir, basename);
+    const string filenameOut = V3Os::filenameJoin(dir, basename);
     if (!fileStatNormal(filenameOut)) return "";  // Directory
     return filenameOut;
 }
@@ -538,7 +536,7 @@ string V3Options::fileExists(const string& filename) {
 string V3Options::filePathCheckOneDir(const string& modname, const string& dirname) {
     for (const string& i : m_impp->m_libExtVs) {
         const string fn = V3Os::filenameJoin(dirname, modname + i);
-        string exists = fileExists(fn);
+        const string exists = fileExists(fn);
         if (exists != "") return exists;
     }
     return "";
@@ -578,15 +576,15 @@ string V3Options::filePath(FileLine* fl, const string& modname, const string& la
     const string filename = V3Os::filenameCleanup(VName::dehash(modname));
     if (!V3Os::filenameIsRel(filename)) {
         // filename is an absolute path, so can find getStdPackagePath()/getStdWaiverPath()
-        string exists = filePathCheckOneDir(filename, "");
+        const string exists = filePathCheckOneDir(filename, "");
         if (exists != "") return exists;
     }
     for (const string& dir : m_impp->m_incDirUsers) {
-        string exists = filePathCheckOneDir(filename, dir);
+        const string exists = filePathCheckOneDir(filename, dir);
         if (exists != "") return exists;
     }
     for (const string& dir : m_impp->m_incDirFallbacks) {
-        string exists = filePathCheckOneDir(filename, dir);
+        const string exists = filePathCheckOneDir(filename, dir);
         if (exists != "") return exists;
     }
 
@@ -1356,6 +1354,7 @@ void V3Options::parseOptsList(FileLine* fl, const string& optdir, int argc,
     DECL_OPTION("-fsubst-const", FOnOff, &m_fSubstConst);
     DECL_OPTION("-ftable", FOnOff, &m_fTable);
     DECL_OPTION("-ftaskify-all-forked", FOnOff, &m_fTaskifyAll).undocumented();  // Debug
+    DECL_OPTION("-fvar-split", FOnOff, &m_fVarSplit);
 
     DECL_OPTION("-G", CbPartialMatch, [this](const char* optp) { addParameter(optp, false); });
     DECL_OPTION("-gate-stmts", Set, &m_gateStmts);
@@ -2168,6 +2167,7 @@ void V3Options::optimize(int level) {
     m_fSubst = flag;
     m_fSubstConst = flag;
     m_fTable = flag;
+    m_fVarSplit = flag;
     // And set specific optimization levels
     if (level >= 3) {
         m_inlineMult = -1;  // Maximum inlining
