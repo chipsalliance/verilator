@@ -85,7 +85,7 @@ public:
         // To simplify our free list, we use a size large enough for all derived types
         // We reserve word zero for the next pointer, as that's safer in case a
         // dangling reference to the original remains around.
-        static constexpr size_t CHUNK_SIZE = 128;
+        static constexpr size_t CHUNK_SIZE = 256;
         if (VL_UNCOVERABLE(size > CHUNK_SIZE))
             VL_FATAL_MT(__FILE__, __LINE__, "", "increase CHUNK_SIZE");
         if (VL_LIKELY(t_freeHeadp)) {
@@ -2574,8 +2574,8 @@ void vl_vpi_put_word(const VerilatedVpioVar* vop, QData word, size_t bitCount, s
 }
 
 void vl_vpi_get_value(const VerilatedVpioVarBase* vop, p_vpi_value valuep) {
-    const VerilatedVar* varp = vop->varp();
-    void* varDatap = vop->varDatap();
+    const VerilatedVar* const varp = vop->varp();
+    void* const varDatap = vop->varDatap();
     const char* fullname = vop->fullname();
 
     if (!vl_check_format(varp, valuep, fullname, true)) return;
@@ -2980,7 +2980,6 @@ void vl_get_value_array_vectors(unsigned index, const unsigned num, const unsign
                   "type T is not unsigned");  // ensure logical right shift
     const unsigned element_size_bytes = VL_BYTES_I(packedSize);
     const unsigned element_size_words = VL_WORDS_I(packedSize);
-    const unsigned element_size_repr = (element_size_bytes + sizeof(T) - 1) / sizeof(T);
     if (sizeof(T) == sizeof(QData)) {
         for (unsigned i = 0; i < num; i++) {
             dst[i * 2].aval = static_cast<QData>(src[index]);
@@ -3102,7 +3101,7 @@ void vl_put_value_array_rawvals(unsigned index, const unsigned num, const unsign
     }
 }
 
-void vl_get_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p, PLI_INT32* index_p,
+void vl_get_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p, const PLI_INT32* index_p,
                         PLI_UINT32 num) {
     const VerilatedVpioVar* const vop = VerilatedVpioVar::castp(object);
     if (!vl_check_array_format(vop->varp(), arrayvalue_p, vop->fullname())) return;
@@ -3119,7 +3118,7 @@ void vl_get_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p, PLI_INT
     }
 
     const bool leftIsLow = vop->rangep()->left() == vop->rangep()->low();
-    int index
+    const int index
         = leftIsLow ? index_p[0] - vop->rangep()->left() : vop->rangep()->left() - index_p[0];
 
     if (arrayvalue_p->format == vpiShortIntVal) {
@@ -3310,9 +3309,8 @@ void vpi_get_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p, PLI_IN
         return;
     }
 
-    int lowRange = vop->rangep()->low();
-    int highRange = vop->rangep()->high();
-
+    const int lowRange = vop->rangep()->low();
+    const int highRange = vop->rangep()->high();
     if ((index_p[0] > highRange) || (index_p[0] < lowRange)) {
         VL_VPI_ERROR_(__FILE__, __LINE__, "%s: index %u for object %s is out of bounds [%u,%u]",
                       __func__, index_p[0], vop->fullname(), lowRange, highRange);
@@ -3328,14 +3326,14 @@ void vpi_get_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p, PLI_IN
     vl_get_value_array(object, arrayvalue_p, index_p, num);
 }
 
-void vl_put_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p, PLI_INT32* index_p,
+void vl_put_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p, const PLI_INT32* index_p,
                         PLI_UINT32 num) {
     const VerilatedVpioVar* const vop = VerilatedVpioVar::castp(object);
     if (!vl_check_array_format(vop->varp(), arrayvalue_p, vop->fullname())) return;
 
     const VerilatedVar* const varp = vop->varp();
 
-    int size = vop->size();
+    const int size = vop->size();
     if (VL_UNCOVERABLE(num > size)) {
         VL_VPI_ERROR_(__FILE__, __LINE__,
                       "%s: requested elements to set (%u) exceed array size (%u)", __func__, num,
@@ -3344,7 +3342,7 @@ void vl_put_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p, PLI_INT
     }
 
     const bool leftIsLow = vop->rangep()->left() == vop->rangep()->low();
-    int index
+    const int index
         = leftIsLow ? index_p[0] - vop->rangep()->left() : vop->rangep()->left() - index_p[0];
 
     if (arrayvalue_p->format == vpiShortIntVal) {
@@ -3492,11 +3490,8 @@ void vpi_put_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p, PLI_IN
         return;
     }
 
-    const VerilatedVar* const varp = vop->varp();
-
-    int lowRange = vop->rangep()->low();
-    int highRange = vop->rangep()->high();
-
+    const int lowRange = vop->rangep()->low();
+    const int highRange = vop->rangep()->high();
     if ((index_p[0] > highRange) || (index_p[0] < lowRange)) {
         VL_VPI_ERROR_(__FILE__, __LINE__, "%s: index %u for object %s is out of bounds [%u,%u]",
                       __func__, index_p[0], vop->fullname(), lowRange, highRange);

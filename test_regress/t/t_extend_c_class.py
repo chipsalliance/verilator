@@ -9,12 +9,10 @@
 
 import vltest_bootstrap
 
-test.scenarios('linter')
-test.top_filename = "t/t_no_std_bad.v"
-test.golden_filename = "t/t_no_std_bad.out"
+test.scenarios('vlt')
 
-test.lint(fails=True,
-          verilator_flags2=["--no-std-package", "--exe --main --timing -Wall"],
-          expect_filename=test.golden_filename)
+test.compile(make_flags=["CPPFLAGS_ADD=-I" + test.t_dir])
+
+test.execute()
 
 test.passes()

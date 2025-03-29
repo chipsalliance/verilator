@@ -450,12 +450,13 @@ BISONPRE_VERSION(3.7,%define api.header.include {"V3ParseBison.h"})
 
 %token<strp>            yaTABLELINE     "TABLE LINE"
 
-%token<strp>            yaSCHDR         "`systemc_header BLOCK"
-%token<strp>            yaSCINT         "`systemc_ctor BLOCK"
-%token<strp>            yaSCIMP         "`systemc_dtor BLOCK"
-%token<strp>            yaSCIMPH        "`systemc_interface BLOCK"
-%token<strp>            yaSCCTOR        "`systemc_implementation BLOCK"
-%token<strp>            yaSCDTOR        "`systemc_imp_header BLOCK"
+%token<strp>            yaSCCTOR        "`systemc_ctor block"
+%token<strp>            yaSCDTOR        "`systemc_dtor block"
+%token<strp>            yaSCHDR         "`systemc_header block"
+%token<strp>            yaSCHDRP        "`systemc_header_post block"
+%token<strp>            yaSCIMP         "`systemc_implementation block"
+%token<strp>            yaSCIMPH        "`systemc_imp_header block"
+%token<strp>            yaSCINT         "`systemc_interface block"
 
 %token<fl>              yVLT_CLOCKER                "clocker"
 %token<fl>              yVLT_CLOCK_ENABLE           "clock_enable"
@@ -2729,17 +2730,23 @@ non_port_module_item<nodep>:    // ==IEEE: non_port_module_item
                         { $$ = nullptr; BBUNSUP(CRELINE(), "Unsupported: interface decls within module decls"); }
         |       timeunits_declaration                   { $$ = $1; }
         //                      // Verilator specific
-        |       yaSCHDR                                 { $$ = new AstScHdr{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
-        |       yaSCINT                                 { $$ = new AstScInt{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
-        |       yaSCIMP                                 { $$ = new AstScImp{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
-        |       yaSCIMPH                                { $$ = new AstScImpHdr{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
-        |       yaSCCTOR                                { $$ = new AstScCtor{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
-        |       yaSCDTOR                                { $$ = new AstScDtor{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
+        |       vlScBlock                               { $$ = $1; }
         |       yVL_HIER_BLOCK                          { $$ = new AstPragma{$1, VPragmaType::HIER_BLOCK}; }
         |       yVL_INLINE_MODULE                       { $$ = new AstPragma{$1, VPragmaType::INLINE_MODULE}; }
         |       yVL_NO_INLINE_MODULE                    { $$ = new AstPragma{$1, VPragmaType::NO_INLINE_MODULE}; }
         |       yVL_PUBLIC_MODULE                       { $$ = new AstPragma{$1, VPragmaType::PUBLIC_MODULE}; v3Global.dpi(true); }
         ;
+
+vlScBlock<nodep>:  // Verilator-specific `systemc_* blocks
+                yaSCHDR                                 { $$ = new AstScHdr{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
+        |       yaSCHDRP                                { $$ = new AstScHdrPost{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
+        |       yaSCINT                                 { $$ = new AstScInt{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
+        |       yaSCIMP                                 { $$ = new AstScImp{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
+        |       yaSCIMPH                                { $$ = new AstScImpHdr{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
+        |       yaSCCTOR                                { $$ = new AstScCtor{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
+        |       yaSCDTOR                                { $$ = new AstScDtor{$<fl>1, *$1}; v3Global.setHasSCTextSections(); }
+        ;
+
 
 module_or_generate_item<nodep>: // ==IEEE: module_or_generate_item
         //                      // IEEE: parameter_override
@@ -7372,6 +7379,8 @@ class_item<nodep>:                      // ==IEEE: class_item
         //                      // local_parameter_declaration under parameter_declaration
         |       parameter_declaration ';'               { $$ = $1; }
         |       ';'                                     { $$ = nullptr; }
+        //                      // Verilator specific
+        |       vlScBlock                               { $$ = $1; }
         //
         |       error ';'                               { $$ = nullptr; }
         ;
