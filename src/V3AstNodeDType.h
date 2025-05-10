@@ -427,6 +427,8 @@ public:
     string prettyDTypeName(bool full) const override;
     const char* broken() const override {
         BROKEN_RTN(dtypep() != this);
+        BROKEN_RTN(v3Global.widthMinUsage() == VWidthMinUsage::VERILOG_WIDTH
+                   && widthMin() > width());
         return nullptr;
     }
     void setSignedState(const VSigning& signst) {
@@ -664,16 +666,12 @@ class AstDefImplicitDType final : public AstNodeDType {
     // After link, these become typedefs
     // @astgen op1 := childDTypep : Optional[AstNodeDType]
     string m_name;
-    void* m_containerp;  // In what scope is the name unique, so we can know what are duplicate
-                         // definitions (arbitrary value)
     const int m_uniqueNum;
 
 public:
-    AstDefImplicitDType(FileLine* fl, const string& name, void* containerp, VFlagChildDType,
-                        AstNodeDType* dtp)
+    AstDefImplicitDType(FileLine* fl, const string& name, VFlagChildDType, AstNodeDType* dtp)
         : ASTGEN_SUPER_DefImplicitDType(fl)
         , m_name{name}
-        , m_containerp{containerp}
         , m_uniqueNum{uniqueNumInc()} {
         childDTypep(dtp);  // Only for parser
         dtypep(nullptr);  // V3Width will resolve
@@ -681,7 +679,6 @@ public:
     AstDefImplicitDType(const AstDefImplicitDType& other)
         : AstNodeDType(other)
         , m_name(other.m_name)
-        , m_containerp(other.m_containerp)
         , m_uniqueNum(uniqueNumInc()) {}
     ASTGEN_MEMBERS_AstDefImplicitDType;
     int uniqueNum() const { return m_uniqueNum; }
@@ -694,7 +691,6 @@ public:
     AstNodeDType* subDTypep() const override VL_MT_STABLE {
         return dtypep() ? dtypep() : childDTypep();
     }
-    void* containerp() const { return m_containerp; }
     // METHODS
     // op1 = Range of variable
     AstNodeDType* dtypeSkipRefp() const { return dtypep()->skipRefp(); }

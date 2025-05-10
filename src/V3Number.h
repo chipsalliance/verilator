@@ -408,7 +408,7 @@ public:
         if (bit < 0) return false;
         if (bit >= m_data.width()) return !bitIsXZ(m_data.width() - 1);
         const ValueAndX v = m_data.num()[bit / 32];
-        return ((v.m_value & (1UL << (bit & 31))) == 0 && !(v.m_valueX & (1UL << (bit & 31))));
+        return ((v.m_value | v.m_valueX) & (1UL << (bit & 31))) == 0;
     }
     bool bitIs1(int bit) const VL_MT_SAFE {
         if (!isNumber()) return false;
@@ -418,6 +418,7 @@ public:
         return ((v.m_value & (1UL << (bit & 31))) && !(v.m_valueX & (1UL << (bit & 31))));
     }
     bool bitIs1Extend(int bit) const {
+        // Correct number of zero bits/width matters
         if (!isNumber()) return false;
         if (bit < 0) return false;
         if (bit >= m_data.width()) return bitIs1Extend(m_data.width() - 1);
@@ -457,7 +458,10 @@ private:
     int countZ(int lsb, int nbits) const VL_MT_SAFE;
 
     int words() const VL_MT_SAFE { return ((width() + 31) / 32); }
-    uint32_t hiWordMask() const VL_MT_SAFE { return VL_MASK_I(width()); }
+    uint32_t hiWordMask() const VL_MT_SAFE {
+        // Correct number of zero bits/width matters
+        return VL_MASK_I(width());
+    }
 
     V3Number& opModDivGuts(const V3Number& lhs, const V3Number& rhs, bool is_modulus);
 
@@ -615,13 +619,16 @@ public:
         return m_data.type() == V3NumberDataType::LOGIC
                || m_data.type() == V3NumberDataType::DOUBLE;
     }
-    bool isNegative() const VL_MT_SAFE { return !isString() && bitIs1(width() - 1); }
+    bool isNegative() const VL_MT_SAFE {
+        // Correct number of zero bits/width matters
+        return !isString() && bitIs1(width() - 1);
+    }
     bool is1Step() const VL_MT_SAFE { return m_data.m_is1Step; }
     bool isNull() const VL_MT_SAFE { return m_data.m_isNull; }
     bool isFourState() const VL_MT_SAFE;
     bool hasZ() const {
         if (isString()) return false;
-        for (int i = 0; i < words(); i++) {
+        for (int i = 0; i < words(); ++i) {
             const ValueAndX v = m_data.num()[i];
             if ((~v.m_value) & v.m_valueX) return true;
         }
@@ -632,6 +639,7 @@ public:
     bool isEqZero() const VL_MT_SAFE;
     bool isNeqZero() const;
     bool isBitsZero(int msb, int lsb) const;
+    bool isBroken(int vwidth) const;
     bool isEqOne() const;
     bool isEqAllOnes(int optwidth = 0) const;
     bool isCaseEq(const V3Number& rhs) const;  // operator==
@@ -639,7 +647,10 @@ public:
     bool isAnyX() const VL_MT_SAFE;
     bool isAnyXZ() const;
     bool isAnyZ() const VL_MT_SAFE;
-    bool isMsbXZ() const { return bitIsXZ(m_data.width() - 1); }
+    bool isMsbXZ() const {
+        // Correct number of zero bits/width matters
+        return bitIsXZ(width() - 1);
+    }
     bool fitsInUInt() const VL_MT_SAFE;
     uint32_t toUInt() const VL_MT_SAFE;
     int32_t toSInt() const VL_MT_SAFE;

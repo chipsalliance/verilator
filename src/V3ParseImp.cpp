@@ -126,8 +126,8 @@ void V3ParseImp::lexTimescaleParse(FileLine* fl, const char* textp) {
     m_timeLastUnit = v3Global.opt.timeComputeUnit(unit);
     v3Global.rootp()->timeprecisionMerge(fl, prec);
 }
-void V3ParseImp::timescaleMod(FileLine* fl, AstNodeModule* modp, bool unitSet, double unitVal,
-                              bool precSet, double precVal) {
+AstPragma* V3ParseImp::createTimescale(FileLine* fl, bool unitSet, double unitVal, bool precSet,
+                                       double precVal) {
     VTimescale unit{VTimescale::NONE};
     if (unitSet) {
         bool bad;
@@ -146,16 +146,13 @@ void V3ParseImp::timescaleMod(FileLine* fl, AstNodeModule* modp, bool unitSet, d
             fl->v3error("timeprecision illegal value");
         }
     }
-    if (!unit.isNone()) {
-        unit = v3Global.opt.timeComputeUnit(unit);
-        if (modp) {
-            modp->timeunit(unit);
-        } else {
-            v3Global.rootp()->timeunit(unit);
-            unitPackage(fl)->timeunit(unit);
-        }
-    }
     v3Global.rootp()->timeprecisionMerge(fl, prec);
+    if (unit.isNone()) {
+        return nullptr;
+    } else {
+        unit = v3Global.opt.timeComputeUnit(unit);
+        return new AstPragma{fl, VPragmaType::TIMEUNIT_SET, unit};
+    }
 }
 
 void V3ParseImp::lexVerilatorCmtLintSave(const FileLine* fl) { m_lexLintState.push_back(*fl); }
@@ -415,7 +412,7 @@ const V3ParseBisonYYSType* V3ParseImp::tokenPeekp(size_t depth) {
     return &m_tokensAhead.at(depth);
 }
 
-size_t V3ParseImp::tokenPipeScanIdCell(size_t depthIn) {
+size_t V3ParseImp::tokenPipeScanIdInst(size_t depthIn) {
     // Search around IEEE module_instantiation/interface_instantiation/program_instantiation
     // Return location of following token, or input if not found
     // yaID/*module_identifier*/ [ '#' '('...')' ] yaID/*name_of_instance*/ [ '['...']' ] '(' ...
@@ -533,7 +530,7 @@ int V3ParseImp::tokenPipelineId(int token) {
     VL_RESTORER(yylval);  // Remember value, as about to read ahead
     if (m_tokenLastBison.token != '@' && m_tokenLastBison.token != '#'
         && m_tokenLastBison.token != '.') {
-        if (const size_t depth = tokenPipeScanIdCell(0)) return yaID__aCELL;
+        if (const size_t depth = tokenPipeScanIdInst(0)) return yaID__aINST;
     }
     if (nexttok == '#') {  // e.g. class_type parameter_value_assignment '::'
         const size_t depth = tokenPipeScanParam(0, false);
@@ -752,12 +749,17 @@ int V3ParseImp::tokenToBison() {
 // V3ParseBisonYYSType functions
 
 std::ostream& operator<<(std::ostream& os, const V3ParseBisonYYSType& rhs) {
-    os << "TOKEN {" << rhs.fl->filenameLetters() << rhs.fl->asciiLineCol() << "}";
+    os << "TOKEN {";
+    if (VL_UNCOVERABLE(!rhs.fl))
+        os << "%E-null-fileline";
+    else
+        os << rhs.fl->filenameLetters() << rhs.fl->asciiLineCol();
+    os << "}";
     os << "=" << rhs.token << " " << V3ParseImp::tokenName(rhs.token);
     if (rhs.token == yaID__ETC  //
         || rhs.token == yaID__CC  //
         || rhs.token == yaID__LEX  //
-        || rhs.token == yaID__aCELL  //
+        || rhs.token == yaID__aINST  //
         || rhs.token == yaID__aTYPE) {
         os << " strp='" << *(rhs.strp) << "'";
     }

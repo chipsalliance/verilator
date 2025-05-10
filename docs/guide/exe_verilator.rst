@@ -183,7 +183,7 @@ Summary:
    With :vlopt:`--clk`, the specified signal is marked as a clock signal.
 
    The provided signal name is specified using a RTL hierarchy path. For
-   example, v.foo.bar.  If the signal is the input to top-module, then
+   example, v.foo.bar.  If the signal is the input to the top-module, then
    directly provide the signal name. Alternatively, use a
    :option:`/*verilator&32;clocker*/` metacomment in RTL file to mark the
    signal directly.
@@ -606,6 +606,10 @@ Summary:
 .. option:: -fno-func-opt-split-cat
 
 .. option:: -fno-gate
+
+   Rarely needed. Do not apply the gate-level wire optimizations. Using
+   this is not recommended as may cause additional warnings and ordering
+   issues.
 
 .. option:: -fno-inline
 
@@ -1273,8 +1277,8 @@ Summary:
 
 .. option:: --public
 
-   This is only for historical debugging use and using it may result in
-   mis-simulation of generated clocks.
+   Rarely needed. This is only for historical debugging use and using it
+   may result in mis-simulation of generated clocks.
 
    Declares all signals and modules public.  This will turn off signal
    optimizations as if all signals had a :option:`/*verilator&32;public*/`
@@ -1564,7 +1568,6 @@ Summary:
    This is not needed with standard designs with only one top.  See also
    :option:`MULTITOP` warning.
 
-
 .. option:: --trace
 
    Deprecated; use :vlopt:`--trace-fst`, :vlopt:`--trace-saif` or
@@ -1720,8 +1723,8 @@ Summary:
 
 .. option:: --valgrind
 
-   Run Verilator under `Valgrind <https://valgrind.org/>`_.  The command may be
-   changed with :option:`VERILATOR_VALGRIND`.
+   Rarely needed. Run Verilator under `Valgrind <https://valgrind.org/>`_.
+   The command may be changed with :option:`VERILATOR_VALGRIND`.
 
 .. option:: --no-verilate
 
