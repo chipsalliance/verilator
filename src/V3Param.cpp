@@ -767,6 +767,7 @@ class ParamProcessor final {
             }
         } else if (AstParamTypeDType* const modvarp = pinp->modPTypep()) {
             AstNodeDType* rawTypep = VN_CAST(pinp->exprp(), NodeDType);
+            if (rawTypep) V3Width::widthParamsEdit(rawTypep);
             AstNodeDType* exprp = rawTypep ? rawTypep->skipRefToNonRefp() : nullptr;
             const AstNodeDType* const origp = modvarp->skipRefToNonRefp();
             if (!exprp) {
@@ -945,7 +946,7 @@ class ParamProcessor final {
 
         for (auto* stmtp = srcModpr->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
             if (AstParamTypeDType* dtypep = VN_CAST(stmtp, ParamTypeDType)) {
-                if (VN_IS(dtypep->skipRefp(), VoidDType)) {
+                if (VN_IS(dtypep->skipRefOrNullp(), VoidDType)) {
                     nodep->v3error(
                         "Class parameter type without default value is never given value"
                         << " (IEEE 1800-2023 6.20.1): " << dtypep->prettyNameQ());
@@ -1166,7 +1167,7 @@ class ParamVisitor final : public VNVisitor {
     void relinkDots() {
         for (AstDot* const dotp : m_dots) {
             const AstClassOrPackageRef* const classRefp = VN_AS(dotp->lhsp(), ClassOrPackageRef);
-            const AstClass* const lhsClassp = VN_AS(classRefp->classOrPackageNodep(), Class);
+            const AstClass* const lhsClassp = VN_AS(classRefp->classOrPackageSkipp(), Class);
             AstClassOrPackageRef* const rhsp = VN_AS(dotp->rhsp(), ClassOrPackageRef);
             for (auto* itemp = lhsClassp->membersp(); itemp; itemp = itemp->nextp()) {
                 if (itemp->name() == rhsp->name()) {
@@ -1234,7 +1235,7 @@ class ParamVisitor final : public VNVisitor {
     }
     void visit(AstParamTypeDType* nodep) override {
         iterateChildren(nodep);
-        if (VN_IS(nodep->skipRefp(), VoidDType)) {
+        if (VN_IS(nodep->skipRefOrNullp(), VoidDType)) {
             nodep->v3error("Parameter type without default value is never given value"
                            << " (IEEE 1800-2023 6.20.1): " << nodep->prettyNameQ());
         }
@@ -1322,7 +1323,7 @@ class ParamVisitor final : public VNVisitor {
         // by a class with actual parameter values.
         const AstClass* lhsClassp = nullptr;
         const AstClassOrPackageRef* const classRefp = VN_CAST(nodep->lhsp(), ClassOrPackageRef);
-        if (classRefp) lhsClassp = VN_CAST(classRefp->classOrPackageNodep(), Class);
+        if (classRefp) lhsClassp = VN_CAST(classRefp->classOrPackageSkipp(), Class);
         AstNode* rhsDefp = nullptr;
         AstClassOrPackageRef* const rhsp = VN_CAST(nodep->rhsp(), ClassOrPackageRef);
         if (rhsp) rhsDefp = rhsp->classOrPackageNodep();

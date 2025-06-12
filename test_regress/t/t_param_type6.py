@@ -10,9 +10,8 @@
 import vltest_bootstrap
 
 test.scenarios('simulator')
-test.top_filename = "t/t_interface_array2.v"
 
-test.compile(timing_loop=True, v_flags2=["-fno-inline --timing"])
+test.compile()
 
 test.execute()
 
