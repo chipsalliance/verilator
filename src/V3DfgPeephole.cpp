@@ -774,12 +774,9 @@ class V3DfgPeephole final : public DfgVisitor {
                     DfgSel* const replacementp = make<DfgSel>(vtxp, lhsp, lsb - rhsp->width());
                     replace(vtxp, replacementp);
                 }
-            } else if (lsb == 0 || msb == concatp->width() - 1  //
-                       || lhsp->is<DfgConst>() || rhsp->is<DfgConst>()  //
-                       || !concatp->hasMultipleSinks()) {
-                // If the select straddles both sides, but at least one of the sides is wholly
-                // selected, or at least one of the sides is a Const, or this concat has no other
-                // use, then push the Sel past the Concat
+            } else if (!concatp->hasMultipleSinks()) {
+                // If the select straddles both sides, the Concat has no other use,
+                // then push the Sel past the Concat
                 APPLYING(PUSH_SEL_THROUGH_CONCAT) {
                     const uint32_t rSelWidth = rhsp->width() - lsb;
                     const uint32_t lSelWidth = width - rSelWidth;
@@ -844,7 +841,8 @@ class V3DfgPeephole final : public DfgVisitor {
         // Sel from Cond
         if (DfgCond* const condp = fromp->cast<DfgCond>()) {
             // If at least one of the branches are a constant, push the select past the cond
-            if (condp->thenp()->is<DfgConst>() || condp->elsep()->is<DfgConst>()) {
+            if (!condp->hasMultipleSinks()
+                && (condp->thenp()->is<DfgConst>() || condp->elsep()->is<DfgConst>())) {
                 APPLYING(PUSH_SEL_THROUGH_COND) {
                     // The new 'then' vertex
                     DfgSel* const newThenp = make<DfgSel>(vtxp, condp->thenp(), lsb);
@@ -894,8 +892,8 @@ class V3DfgPeephole final : public DfgVisitor {
         DfgVertex* const rhsp = vtxp->rhsp();
         FileLine* const flp = vtxp->fileline();
 
-        // Bubble pushing
-        if (!vtxp->hasMultipleSinks() && !lhsp->hasMultipleSinks() && !rhsp->hasMultipleSinks()) {
+        // Bubble pushing (De Morgan)
+        if (!lhsp->hasMultipleSinks() && !rhsp->hasMultipleSinks()) {
             if (DfgNot* const lhsNotp = lhsp->cast<DfgNot>()) {
                 if (DfgNot* const rhsNotp = rhsp->cast<DfgNot>()) {
                     APPLYING(REPLACE_AND_OF_NOT_AND_NOT) {
@@ -963,8 +961,8 @@ class V3DfgPeephole final : public DfgVisitor {
         DfgVertex* const rhsp = vtxp->rhsp();
         FileLine* const flp = vtxp->fileline();
 
-        // Bubble pushing
-        if (!vtxp->hasMultipleSinks() && !lhsp->hasMultipleSinks() && !rhsp->hasMultipleSinks()) {
+        // Bubble pushing (De Morgan)
+        if (!lhsp->hasMultipleSinks() && !rhsp->hasMultipleSinks()) {
             if (DfgNot* const lhsNotp = lhsp->cast<DfgNot>()) {
                 if (DfgNot* const rhsNotp = rhsp->cast<DfgNot>()) {
                     APPLYING(REPLACE_OR_OF_NOT_AND_NOT) {
