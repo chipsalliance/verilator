@@ -543,6 +543,13 @@ AstNetlist::AstNetlist()
     addMiscsp(m_constPoolp);
 }
 
+const char* AstNetlist::broken() const {
+    for (const AstVar* const varp : m_deferredParamVarps) {
+        BROKEN_RTN(!varp || !varp->brokeExists());
+    }
+    return nullptr;
+}
+
 string AstNetlist::astConstOrigParamName(const AstConst* nodep) const {
     if (!nodep->num().hasOrigParamName()) return "";
     const auto it = m_constOrigParamNames.find(nodep);

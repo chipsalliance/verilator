@@ -72,6 +72,13 @@
 
 VL_DEFINE_DEBUG_FUNCTIONS;
 
+// Walk a class-typed node through typedef/RefDType chains to its ClassRefDType, or null.
+static AstClassRefDType* classRefDTypeOfNode(AstNode* nodep) {
+    while (AstTypedef* const tdp = VN_CAST(nodep, Typedef)) nodep = tdp->subDTypep();
+    AstNodeDType* const dtp = VN_CAST(nodep, NodeDType);
+    return dtp ? VN_CAST(dtp->skipRefOrNullp(), ClassRefDType) : nullptr;
+}
+
 //######################################################################
 // Hierarchical block and parameter db (modules without parameters are also handled)
 
@@ -1260,15 +1267,33 @@ class ParamProcessor final {
                 }
             }
         }
+        // Typedef-aliased paramed class (e.g., typedef C#(7) my_c; my_c::b).
+        if (AstClassRefDType* const crp = classRefDTypeOfNode(classRefp->classOrPackageNodep())) {
+            if (AstClass* const srcClassp = crp->classp()) {
+                if (srcClassp->hasGParam() && crp->paramsp()) {
+                    classRefDeparam(crp, srcClassp);
+                    if (AstClass* const newClassp = crp->classp()) lhsClassp = newClassp;
+                }
+            }
+        }
         if (!lhsClassp) return;
 
-        AstTypedef* const tdefp
-            = VN_CAST(m_memberMap.findMember(lhsClassp, parseRefp->name()), Typedef);
-        if (tdefp) {
+        AstNode* const memberp = m_memberMap.findMember(lhsClassp, parseRefp->name());
+        if (AstTypedef* const tdefp = VN_CAST(memberp, Typedef)) {
             AstRefDType* const refp = new AstRefDType{dotp->fileline(), tdefp->name()};
             refp->typedefp(tdefp);
             dotp->replaceWith(refp);
             VL_DO_DANGLING(dotp->deleteTree(), dotp);
+        } else if (AstVar* const varp = VN_CAST(memberp, Var)) {
+            // Param/lparam member: substitute its constant value so the caller's constify can
+            // succeed.
+            if (varp->isParam() && varp->valuep()) {
+                if (!VN_IS(varp->valuep(), Const)) V3Const::constifyParamsEdit(varp);
+                if (AstConst* const constp = VN_CAST(varp->valuep(), Const)) {
+                    dotp->replaceWith(constp->cloneTree(false));
+                    VL_DO_DANGLING(dotp->deleteTree(), dotp);
+                }
+            }
         }
     }
 
@@ -2167,6 +2192,14 @@ public:
         }
         // Create new module name with _'s between the constants
         UINFOTREE(10, nodep, "", "cell");
+        // Resolve `class::member` Dots in pin values so constify sees Consts.
+        // Single-pass: filter-collect class-scoped Dots, then reverse-iterate so inner
+        // Dots resolve before outer (vector stays empty for cells with no class Dots).
+        std::vector<AstDot*> dotps;
+        nodep->foreach([&](AstDot* dotp) {
+            if (VN_IS(dotp->lhsp(), ClassOrPackageRef)) dotps.push_back(dotp);
+        });
+        for (auto it = dotps.rbegin(); it != dotps.rend(); ++it) resolveDotToTypedef(*it);
         // Evaluate all module constants
         V3Const::constifyParamsEdit(nodep);
         // Set name for warnings for when we param propagate the module
@@ -2756,6 +2789,13 @@ class ParamVisitor final : public VNVisitor {
                     }
                 });
                 if (hasUnresolvedLparamXRef) return;
+                // Defer if value contains a class::member Dot. By V3Param time the only
+                // surviving such Dots are paramed-class refs awaiting linkDotParamed.
+                if (nodep->valuep()->exists(
+                        [](AstDot* dotp) { return VN_IS(dotp->lhsp(), ClassOrPackageRef); })) {
+                    v3Global.rootp()->pushDeferredParamVarp(nodep);
+                    return;
+                }
                 V3Const::constifyParamsEdit(nodep);
             }
         }
@@ -3254,6 +3294,7 @@ public:
 
 void V3Param::param(AstNetlist* rootp) {
     UINFO(2, __FUNCTION__ << ":");
+    rootp->clearDeferredParamVarps();  // Defensive: drop any stragglers from a prior invocation
 
     if (dumpTreeEitherLevel() >= 9) V3LinkDotIfaceCapture::dumpEntries("before V3Param");
     { ParamTop{rootp}; }
@@ -3261,4 +3302,12 @@ void V3Param::param(AstNetlist* rootp) {
     if (dumpTreeEitherLevel() >= 9) V3LinkDotIfaceCapture::dumpEntries("after V3Param");
 
     V3Global::dumpCheckGlobalTree("param", 0, dumpTreeEitherLevel() >= 3);
+}
+
+void V3Param::finalizeDeferredParams(AstNetlist* rootp) {
+    // Constify params whose Dot RHS was resolved by V3LinkDot::linkDotParamed.
+    for (AstVar* const varp : rootp->deferredParamVarps()) {
+        if (varp->valuep() && !VN_IS(varp->valuep(), Const)) V3Const::constifyParamsEdit(varp);
+    }
+    rootp->clearDeferredParamVarps();
 }
