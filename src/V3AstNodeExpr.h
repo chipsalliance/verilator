@@ -1038,6 +1038,7 @@ class AstConst final : public AstNodeExpr {
     }
 
 public:
+    ~AstConst() override;
     AstConst(FileLine* fl, const V3Number& num)
         : ASTGEN_SUPER_Const(fl)
         , m_num{num} {
@@ -1159,17 +1160,21 @@ public:
     string name() const override VL_MT_STABLE { return num().ascii(); }  // * = Value
     const V3Number& num() const VL_MT_SAFE { return m_num; }  // * = Value
     V3Number& num() { return m_num; }  // * = Value
+    string origParamName() const;
+    void origParamName(const string& name);
     uint32_t toUInt() const { return num().toUInt(); }
     int32_t toSInt() const VL_MT_SAFE { return num().toSInt(); }
     uint64_t toUQuad() const { return num().toUQuad(); }
     string emitVerilog() override { V3ERROR_NA_RETURN(""); }
     string emitC() override { V3ERROR_NA_RETURN(""); }
     bool cleanOut() const override { return true; }
+    void dump(std::ostream& str) const override;
+    void dumpJson(std::ostream& str) const override;
     bool sameNode(const AstNode* samep) const override {
         const AstConst* const sp = VN_DBG_AS(samep, Const);
         return num().isCaseEq(sp->num());
     }
-    void cloneRelink() override { m_num.nodep(this); }
+    void cloneRelink() override;
     const char* broken() const override {
         BROKEN_RTN(m_num.nodep() && m_num.nodep() != this);
         return nullptr;
